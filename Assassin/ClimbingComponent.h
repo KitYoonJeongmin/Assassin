@@ -32,6 +32,8 @@ public:
 	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
 	bool CanClimbOnLedge;
 	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
+	bool CanMoveOnLedge;
+	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
 	bool ClimbUpLedge;
 	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
 	bool DropDown;
@@ -61,7 +63,8 @@ public:
 	/**위에 잡을 수 있는지 확인*/
 	void GetWallHeight();
 	
-	void GrabLedge();
+public:
+	void MoveToLedge();
 	void SetOnWall(float OverTime);
 
 public:
@@ -76,9 +79,13 @@ private:
 
 	
 	class UArrowComponent* FrontWallTracer;	//올라갈 때
-	class UArrowComponent* LeftMoveTracer;
-	class UArrowComponent* RightMoveTracer;
-	class UArrowComponent* ClimbUpTracer;
+	class UArrowComponent* LeftMoveTracer;	//Ledge에서 왼쪽으로 움직임
+	class UArrowComponent* RightMoveTracer;	//Ledge에서 오른쪽으로 움직임
+	class UArrowComponent* ClimbUpTracer;	//난간 위를 기어올라감
+	class UArrowComponent* UpGridTracer;	//Ledge를 감지하기 위한 Grid를 만듦
+	class UArrowComponent* RightGridTracer;
+	class UArrowComponent* LeftGridTracer;
+	class UArrowComponent* DownGridTracer;
 
 private:
 	FVector WallImpactNormal;
@@ -95,17 +102,20 @@ private:
 	FVector LedgeLocation;
 	FHitResult HightHitResult;
 	FHitResult ForwardHitResult;
+
 	//옆으로 이동
 public:
 	bool LedgeMoveLeft();
 	bool LedgeMoveRight();
 	void MoveOnLedge(FVector T1ImpactPoint, FVector T2ImpactPoint, FRotator Rot);
-
 public:
 	/**제일 위로 올라가 Walk상태로 돌리는 함수*/
 	void ClimbUp();
-
+	/**주변 난간을 찾는 함수*/
+	void FindLedge(float Right, float Up);
 public:
 	/**난간에서 떨어짐*/
 	void Fall();
+	/**발 아래있는 난간으로 매달림*/
+	void DropToHang();
 };

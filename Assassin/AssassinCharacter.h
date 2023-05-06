@@ -46,11 +46,16 @@ class AAssassinCharacter : public ACharacter, public IClimbingMovement
 	/** Jump Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputAction* FallAction;
-
-
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	FVector2D MovementVector;
 private:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	float WalkSpeed;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	float RunSpeed;
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Mesh)
 	TArray<USkeletalMeshComponent*> MeshArr;
 public:
 	AAssassinCharacter();
@@ -100,6 +105,5 @@ public:
 	class UClimbingComponent* ClimbingComp;
 private:
 	bool isWalk = false;
-
 };
 

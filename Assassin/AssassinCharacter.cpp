@@ -102,8 +102,8 @@ void AAssassinCharacter::Tick(float DeltaTime)
 		isWalk = false;
 		break;
 	}
-	const UEnum* CharStateEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EMovementState"), true);
-	GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Green, CharStateEnum->GetNameByValue((int64)ACAnim->CurrnetMovementState).ToString());
+	//const UEnum* CharStateEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EMovementState"), true);
+	//GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Green, CharStateEnum->GetNameByValue((int64)ACAnim->CurrnetMovementState).ToString());
 }
 
 
@@ -114,12 +114,13 @@ void AAssassinCharacter::Tick(float DeltaTime)
 void AAssassinCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
 	// Set up action bindings
-	if (UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(PlayerInputComponent)) {
+	UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent);
+	if (EnhancedInputComponent != nullptr) {
 		
 		//Jumping
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &AAssassinCharacter::JumpStart);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
-		EnhancedInputComponent->BindAction(FallAction, ETriggerEvent::Triggered, this, &AAssassinCharacter::Fall);
+		
 		//Moving
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AAssassinCharacter::Move);
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Completed, this, &AAssassinCharacter::MoveEnd);
@@ -130,14 +131,18 @@ void AAssassinCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 		//Runing
 		EnhancedInputComponent->BindAction(RunAction, ETriggerEvent::Triggered, this, &AAssassinCharacter::Run);
 		EnhancedInputComponent->BindAction(RunAction, ETriggerEvent::Completed, this, &AAssassinCharacter::RunEnd);
+
+		//Falling
+		EnhancedInputComponent->BindAction(FallAction, ETriggerEvent::Started, this, &AAssassinCharacter::Fall);
 	}
 
 }
 
 void AAssassinCharacter::Move(const FInputActionValue& Value)
 {
+	if (ClimbingComp->ClimbingState.CanMoveOnLedge) return;	//움직이는 중엔 축 변경 안함
 	// input is a Vector2D
-	FVector2D MovementVector = Value.Get<FVector2D>();
+	MovementVector = Value.Get<FVector2D>();
 
 	if (Controller != nullptr)
 	{
@@ -165,29 +170,31 @@ void AAssassinCharacter::Move(const FInputActionValue& Value)
 				{
 					if (ClimbingComp->LedgeMoveRight())
 					{
-						ACAnim->SetCanMoveLedge(false, true);
+						ACAnim->SetCanMoveLedge(false, true);	//오른쪽으로 이동가능
 					}
 					else
 					{
-						ACAnim->SetCanMoveLedge(false, false);
+						ACAnim->SetCanMoveLedge(false, false);	//이동불가
+						//ClimbingComp->FindLedge(MovementVector.X, MovementVector.Y);	//주변 Ledge찾음
 					}
 				}
 				else
 				{
 					if (ClimbingComp->LedgeMoveLeft())
 					{
-						ACAnim->SetCanMoveLedge(true, false);
+						ACAnim->SetCanMoveLedge(true, false);	//왼쪽으로 이동가능
 					}
 					else
 					{
-						ACAnim->SetCanMoveLedge(false, false);
+						ACAnim->SetCanMoveLedge(false, false);	//이동불가
+						//ClimbingComp->FindLedge(MovementVector.X, MovementVector.Y);	//주변 Ledge찾음
 					}
 				}
 			}
-			else if (MovementVector.Y != 0)
-			{
-
-			}
+			//if (MovementVector.Y != 0)
+			//{
+			//	
+			//}
 			break;
 		}
 		
@@ -219,13 +226,25 @@ void AAssassinCharacter::Look(const FInputActionValue& Value)
 
 void AAssassinCharacter::JumpStart()
 {
-	//매달린 상태에서 올라갈 수 있다면
-	if (CurrnetMovementState == EMovementState::E_Hanging)
+	switch (CurrnetMovementState)
 	{
-		ClimbingComp->ClimbUp();
-		if (ClimbingComp->ClimbingState.ClimbUpLedge)
+	case EMovementState::E_Walking:
+		//점프시 앞에 벽이 있고 잡을 수 있다면
+		ClimbingComp->GetWallHeight();
+		if (ClimbingComp->ClimbingState.CanClimbOnLedge == true)
 		{
-			UE_LOG(LogTemp, Log, TEXT("ClimbUp"));
+				ACAnim->PlayClimbingIdleMon();
+		}
+		else  //아니면 그냥 점프
+		{
+			Jump();
+		}
+		break;
+	case EMovementState::E_Hanging:
+		
+		ClimbingComp->ClimbUp();
+		if (MovementVector.Y >= 0&& ClimbingComp->ClimbingState.ClimbUpLedge)//매달린 상태에서 올라갈 수 있다면
+		{
 			//DisableInput(Cast<APlayerController>(GetController()));
 			for (auto mesh : MeshArr)
 			{
@@ -236,30 +255,20 @@ void AAssassinCharacter::JumpStart()
 			ACAnim->PlayClimbUpMon();
 			return;
 		}
-	}
-	//점프시 앞에 벽이 있고 잡을 수 있다면
-	ClimbingComp->GetWallHeight();
-	if (ClimbingComp->ClimbingState.CanClimbOnLedge == true)
-	{
-
-		switch (CurrnetMovementState)
+		else if(!ClimbingComp->ClimbingState.CanMoveOnLedge)
 		{
-		case EMovementState::E_Walking:
-
-			ACAnim->PlayClimbingIdleMon();
-			break;
-
-		case EMovementState::E_Hanging:
-			break;
+			if (MovementVector.Y == 0)
+			{
+				if (MovementVector.X > 0 && ClimbingComp->LedgeMoveRight()) break;	//오른쪽 이동 가능하면 점프못함
+				if (MovementVector.X < 0 && ClimbingComp->LedgeMoveLeft()) break;	//왼쪽 이동가능하면 점프못함
+			}
+			ClimbingComp->FindLedge(MovementVector.X, MovementVector.Y);	//주변 Ledge찾음
 		}
-
+		
+		break;
+	case EMovementState::E_Falling:
+		break;
 	}
-	else  //아니면 그냥 점프
-	{
-		Jump();
-	}
-	
-	
 }
 
 void AAssassinCharacter::Run()
@@ -274,12 +283,21 @@ void AAssassinCharacter::RunEnd()
 
 void AAssassinCharacter::Fall()
 {
-	for (auto mesh : MeshArr)
+	switch (CurrnetMovementState)
 	{
-		Cast<UACAnimInstance>(mesh->GetAnimInstance())->UpdateMovementState(EMovementState::E_Walking);
+	case EMovementState::E_Walking:
+		ClimbingComp->DropToHang();
+		break;
+	case EMovementState::E_Hanging:
+		for (auto mesh : MeshArr)
+		{
+			Cast<UACAnimInstance>(mesh->GetAnimInstance())->UpdateMovementState(EMovementState::E_Walking);
+		}
+		ClimbingComp->Fall();
+		break;
 	}
-	ClimbingComp->Fall();
-	FCollisionShape::
+
+
 }
 
 void AAssassinCharacter::UpdateMovementState(EMovementState CurrentState)

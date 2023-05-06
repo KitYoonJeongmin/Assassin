@@ -20,6 +20,7 @@ void UACAnimInstance::NativeBeginPlay()
 {
 	Super::NativeBeginPlay();
 	FootIKComp->m_pCharacter = Cast<ACharacter>(TryGetPawnOwner());
+
 }
 
 void UACAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
@@ -40,6 +41,11 @@ void UACAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	HipOffset = FootIKComp->m_fHipOffset;
 	FootOffsetL = FootIKComp->m_fFootOffsetLeft;
 	FootOffsetR = FootIKComp->m_fFootOffsetRight;
+
+	//MoveTo Other Ledge
+	CanMoveOtherLedge = Character->ClimbingComp->ClimbingState.CanMoveOnLedge;
+	InputRightAxis = Character->MovementVector.X;
+	InputForwardAxis = Character->MovementVector.Y;
 }
 
 void UACAnimInstance::PlayClimbingIdleMon()
@@ -113,21 +119,22 @@ void UACAnimInstance::AnimNotify_ClimbJump()
 	//UE_LOG(LogTemp, Log, TEXT("Climb"));
 	UpdateMovementState(Character->CurrnetMovementState);
 	Character->Jump();
-	Character->ClimbingComp->GrabLedge();
+	Character->ClimbingComp->MoveToLedge();
 }
 
 void UACAnimInstance::AnimNotify_ClimbUpEnd()
 {
-	/*
-	Character->UpdateMovementState(EMovementState::E_Walking);
-	Cast<UCharacterMovementComponent>(Character->GetMovementComponent())->SetMovementMode(MOVE_Walking);
-	Cast<UCharacterMovementComponent>(Character->GetMovementComponent())->bOrientRotationToMovement = true;
-	Character->GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	
-	Character->ClimbingComp->ClimbingState.CanClimbOnLedge = false;
-	Character->ClimbingComp->ClimbingState.ClimbUpLedge = false;
-	Character->ClimbingComp->ClimbingState.DropDown = false;
-	Character->ClimbingComp->ClimbingState.HighMantle = false;
-	*/
 	Character->ClimbingComp->Fall();
+}
+
+void UACAnimInstance::AnimNotify_MoveToLedge()
+{
+	Character->ClimbingComp->MoveToLedge();
+}
+
+void UACAnimInstance::AnimNotify_MoveToLedgeEnd()
+{
+	Character->ClimbingComp->ClimbingState.CanMoveOnLedge = false;
+	Character->GetController()->EnableInput(Cast<APlayerController>(Character->GetController()));
+	
 }

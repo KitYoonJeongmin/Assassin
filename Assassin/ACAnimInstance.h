@@ -60,12 +60,23 @@ public:
 	void AnimNotify_ClimbJump();
 	UFUNCTION()
 	void AnimNotify_ClimbUpEnd();
+	UFUNCTION()
+	void AnimNotify_MoveToLedge();
+	UFUNCTION()
+	void AnimNotify_MoveToLedgeEnd();
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Climbing, Meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Climbing)
 	EMovementState CurrnetMovementState;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Climbing, Meta = (AllowPrivateAccess = true))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Climbing)
 	bool CanMoveLeftOnLedge;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Climbing, Meta = (AllowPrivateAccess = true))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Climbing)
 	bool CanMoveRightOnLedge;
+private:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Climbing, Meta = (AllowPrivateAccess = true))
+	bool CanMoveOtherLedge;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Climbing, Meta = (AllowPrivateAccess = true))
+	float InputRightAxis;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Climbing, Meta = (AllowPrivateAccess = true))
+	float InputForwardAxis;
 };
