@@ -13,7 +13,6 @@ enum class EMovementState : uint8
 {
 	E_Walking = 0   UMETA(DisplayName = "Walking"),	//! DisplayName은 언리얼 에디터, 블루프린트에서 표시되는 이름입니다.
 	E_OnLedge		UMETA(DisplayName = "OnLedge"),
-	E_OnBeam		UMETA(DisplayName = "OnBeam"),
 	E_Hanging		UMETA(DisplayName = "Hanging"),
 	E_Jumping		UMETA(DisplayName = "Jumping"),
 	E_Falling		UMETA(DisplayName = "Falling"),
@@ -39,6 +38,8 @@ public:
 	bool DropDown;
 	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
 	bool HighMantle;
+	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
+	bool CanMoveToSide;
 
 };
 
@@ -118,4 +119,9 @@ public:
 	void Fall();
 	/**발 아래있는 난간으로 매달림*/
 	void DropToHang();
+public:
+	/**HandIK*/
+	void HandIK();
+	FVector IKLeftHand;
+	FVector IKRightHand;
 };

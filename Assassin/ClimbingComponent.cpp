@@ -59,9 +59,9 @@ void UClimbingComponent::BeginPlay()
 	FrontWallTracer->AttachToComponent(Character->GetCapsuleComponent(),FAttachmentTransformRules::KeepRelativeTransform);
 	FrontWallTracer->SetRelativeLocation(FVector(0.f, 0.f, 100.f));
 	LeftMoveTracer->AttachToComponent(Character->GetCapsuleComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-	LeftMoveTracer->SetRelativeLocation(FVector(0.f, -20.f, 100.f));
+	LeftMoveTracer->SetRelativeLocation(FVector(0.f, -30.f, 100.f));
 	RightMoveTracer->AttachToComponent(Character->GetCapsuleComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-	RightMoveTracer->SetRelativeLocation(FVector(0.f, 20.f, 100.f));
+	RightMoveTracer->SetRelativeLocation(FVector(0.f, 30.f, 100.f));
 	ClimbUpTracer->AttachToComponent(Character->GetCapsuleComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 	ClimbUpTracer->SetRelativeLocation(FVector(0.f, 0.f, 120.f));
 	ClimbUpTracer->SetRelativeRotation(FRotator(90.f, 0.f, 0.f));
@@ -82,6 +82,11 @@ void UClimbingComponent::BeginPlay()
 void UClimbingComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	if (ClimbingState.CanClimbOnLedge )
+	{
+		HandIK();
+	}
+	
 }
 
 void UClimbingComponent::GetWallLocation(FVector StartPoint)
@@ -119,6 +124,7 @@ void UClimbingComponent::GetWallLocation(FVector StartPoint)
 		ClimbingState.ClimbUpLedge = false;
 		ClimbingState.DropDown = false;
 		ClimbingState.HighMantle = false;
+		ClimbingState.CanMoveToSide = false;
 	}
 	else
 	{
@@ -127,6 +133,7 @@ void UClimbingComponent::GetWallLocation(FVector StartPoint)
 		ClimbingState.ClimbUpLedge = false;
 		ClimbingState.DropDown = false;
 		ClimbingState.HighMantle = false;
+		ClimbingState.CanMoveToSide = false;
 	}
 }
 
@@ -171,10 +178,6 @@ void UClimbingComponent::GetWallHeight()
 		);
 		if (!IsEnd)	//충분히 잡을 수 있음
 		{
-			/*ClimbingState.CanClimbOnLedge = true;
-			ClimbingState.ClimbUpLedge = false;
-			ClimbingState.DropDown = false;
-			ClimbingState.HighMantle = false;*/
 			GetWallLocation(HightHitResult.ImpactPoint);
 		}
 		else //잡을 수 없음
@@ -184,6 +187,7 @@ void UClimbingComponent::GetWallHeight()
 			ClimbingState.ClimbUpLedge = false;
 			ClimbingState.DropDown = false;
 			ClimbingState.HighMantle = false;
+			ClimbingState.CanMoveToSide = false;
 		}
 
 		
@@ -249,7 +253,7 @@ bool UClimbingComponent::LedgeMoveLeft()
 		UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
 		false,
 		ActorsToIgnore,
-		EDrawDebugTrace::None,
+		EDrawDebugTrace::ForOneFrame,
 		HitResult,
 		true
 		, FLinearColor::Red
@@ -270,7 +274,7 @@ bool UClimbingComponent::LedgeMoveLeft()
 			UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
 			false,
 			ActorsToIgnore,
-			EDrawDebugTrace::None,
+			EDrawDebugTrace::ForOneFrame,
 			HitResult,
 			true
 			, FLinearColor::Red
@@ -290,7 +294,7 @@ bool UClimbingComponent::LedgeMoveLeft()
 				UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
 				false,
 				ActorsToIgnore,
-				EDrawDebugTrace::None,
+				EDrawDebugTrace::ForOneFrame,
 				HitResult,
 				true
 				, FLinearColor::Red
@@ -299,12 +303,22 @@ bool UClimbingComponent::LedgeMoveLeft()
 			);
 			if (IsRight3)
 			{
+				ClimbingState.CanClimbOnLedge = true;
+				ClimbingState.ClimbUpLedge = false;
+				ClimbingState.DropDown = false;
+				ClimbingState.HighMantle = false;
+				ClimbingState.CanMoveToSide = true;
 				MoveOnLedge(ImpactPoint1, ImpactPoint2, Rot);
-				return IsRight3;
+				return ClimbingState.CanMoveToSide;
 			}
 		}
 	}
-	return false;
+	ClimbingState.CanClimbOnLedge = true;
+	ClimbingState.ClimbUpLedge = false;
+	ClimbingState.DropDown = false;
+	ClimbingState.HighMantle = false;
+	ClimbingState.CanMoveToSide = false;
+	return ClimbingState.CanMoveToSide;
 }
 
 bool UClimbingComponent::LedgeMoveRight()
@@ -328,7 +342,7 @@ bool UClimbingComponent::LedgeMoveRight()
 		UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
 		false,
 		ActorsToIgnore,
-		EDrawDebugTrace::None,
+		EDrawDebugTrace::ForOneFrame,
 		HitResult,
 		true
 		, FLinearColor::Red
@@ -338,7 +352,9 @@ bool UClimbingComponent::LedgeMoveRight()
 	if (IsRight)
 	{
 		ImpactPoint1 = HitResult.ImpactPoint;
+		UE_LOG(LogTemp, Warning, TEXT("Rot: % f, % f, % f"), HitResult.ImpactNormal.X, HitResult.ImpactNormal.Y, HitResult.ImpactNormal.Z);
 		Rot = UKismetMathLibrary::MakeRotFromX(HitResult.ImpactNormal);
+		//UE_LOG(LogTemp, Warning, TEXT("Rot: % f, % f, % f"), Rot.Roll, Rot.Pitch, Rot.Yaw);
 		StartPos = HitResult.ImpactPoint + FVector(0.f, 0.f, 20.f);
 		EndPos = StartPos + FVector(0.f, 0.f, -20.f);
 		bool IsRight2 = UKismetSystemLibrary::SphereTraceSingle(
@@ -349,7 +365,7 @@ bool UClimbingComponent::LedgeMoveRight()
 			UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
 			false,
 			ActorsToIgnore,
-			EDrawDebugTrace::None,
+			EDrawDebugTrace::ForOneFrame,
 			HitResult,
 			true
 			, FLinearColor::Red
@@ -369,7 +385,7 @@ bool UClimbingComponent::LedgeMoveRight()
 				UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
 				false,
 				ActorsToIgnore,
-				EDrawDebugTrace::None,
+				EDrawDebugTrace::ForOneFrame,
 				HitResult,
 				true
 				, FLinearColor::Red
@@ -378,12 +394,23 @@ bool UClimbingComponent::LedgeMoveRight()
 			);
 			if (IsRight3)
 			{
+				ClimbingState.CanClimbOnLedge = true;
+				ClimbingState.ClimbUpLedge = false;
+				ClimbingState.DropDown = false;
+				ClimbingState.HighMantle = false;
+				ClimbingState.CanMoveToSide = true;
+
 				MoveOnLedge(ImpactPoint1, ImpactPoint2, Rot);
-				return IsRight3;
+				return ClimbingState.CanMoveToSide;
 			}
 		}
 	}
-	return false;
+	ClimbingState.CanClimbOnLedge = true;
+	ClimbingState.ClimbUpLedge = false;
+	ClimbingState.DropDown = false;
+	ClimbingState.HighMantle = false;
+	ClimbingState.CanMoveToSide = false;
+	return ClimbingState.CanMoveToSide;
 }
 
 void UClimbingComponent::MoveOnLedge(FVector T1ImpactPoint, FVector T2ImpactPoint, FRotator Rot)
@@ -398,7 +425,7 @@ void UClimbingComponent::MoveOnLedge(FVector T1ImpactPoint, FVector T2ImpactPoin
 	FRotator MoveRot = Rot;
 	MoveRot.Yaw -= 180;
 	FRotator CharRot = Character->GetActorRotation();
-	FRotator InterRot = UKismetMathLibrary::RInterpTo(CharRot, MoveRot, GetWorld()->DeltaTimeSeconds, 5);
+	FRotator InterRot = UKismetMathLibrary::RInterpTo(CharRot, MoveRot, GetWorld()->DeltaTimeSeconds, 2);
 
 	Character->SetActorLocationAndRotation(InterLoc, InterRot);
 }
@@ -432,6 +459,7 @@ void UClimbingComponent::ClimbUp()
 		ClimbingState.ClimbUpLedge = true;
 		ClimbingState.DropDown = false;
 		ClimbingState.HighMantle = false;
+		ClimbingState.CanMoveToSide = false;
 	}
 	else
 	{
@@ -439,6 +467,7 @@ void UClimbingComponent::ClimbUp()
 		ClimbingState.ClimbUpLedge = false;
 		ClimbingState.DropDown = false;
 		ClimbingState.HighMantle = false;
+		ClimbingState.CanMoveToSide = false;
 	}
 }
 
@@ -455,6 +484,7 @@ void UClimbingComponent::Fall()
 	ClimbingState.ClimbUpLedge = false;
 	ClimbingState.DropDown = false;
 	ClimbingState.HighMantle = false;
+	ClimbingState.CanMoveToSide = false;
 }
 
 void UClimbingComponent::DropToHang()
@@ -512,10 +542,18 @@ void UClimbingComponent::DropToHang()
 			{
 				Cast<UACAnimInstance>(mesh->GetAnimInstance())->CurrnetMovementState = EMovementState::E_Hanging;
 			}
+			ClimbingState.CanClimbOnLedge = true;
+			ClimbingState.CanMoveOnLedge = false;
+			ClimbingState.ClimbUpLedge = false;
+			ClimbingState.DropDown = false;
+			ClimbingState.HighMantle = false;
+			ClimbingState.CanMoveToSide = false;
 			MoveToLedge();
 		}
 	}
 }
+
+
 
 /// <summary>
 /// 매달린 상태에서 다른 난간으로 이동하기 위해 가까운 난간을 찾는 함수
@@ -619,7 +657,13 @@ void UClimbingComponent::FindLedge(float Right, float Up)
 
 			ClimbRotation = CurrentLedgeRot;
 			LedgeLocation = CurrentLedgeLoc;
+			ClimbingState.CanClimbOnLedge = true;
 			ClimbingState.CanMoveOnLedge = true;
+			ClimbingState.ClimbUpLedge = false;
+			ClimbingState.DropDown = false;
+			ClimbingState.HighMantle = false;
+			ClimbingState.CanMoveToSide = false;
+			
 			
 			//DrawDebugSphere(GetWorld(), UpHitResult.ImpactPoint, 10, 10, FColor(0, 0, 181), false, 2.f);
 			//DebugLoc = UpHitResult.ImpactPoint;
@@ -651,4 +695,44 @@ void UClimbingComponent::FindLedge(float Right, float Up)
 }
 
 
+/// <summary>
+/// HandIK
+/// </summary>
+void UClimbingComponent::HandIK()
+{
+	FHitResult HitResult1;
+	FHitResult HitResult2;
+	TArray<AActor*> ActorsToIgnore;
+	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_GameTraceChannel6));
 
+	FVector LeftStartVec = FrontWallTracer->GetComponentLocation() - Character->GetActorRightVector() * 7;
+	FVector LeftEndVec = LeftStartVec + Character->GetActorForwardVector() * 80.f;
+	if (UKismetSystemLibrary::SphereTraceSingle(GetWorld(), LeftStartVec, LeftEndVec, 5.f, UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
+		false, ActorsToIgnore, EDrawDebugTrace::ForOneFrame, HitResult1, true))
+	{
+		FVector HitPoint(HitResult1.ImpactPoint);
+		FHitResult HitResultLeft;
+		if (UKismetSystemLibrary::SphereTraceSingle(GetWorld(), HitPoint + FVector(0.f, 0.f, 20.f), HitPoint, 5.f, UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
+			false, ActorsToIgnore, EDrawDebugTrace::ForOneFrame, HitResultLeft, true))
+		{
+			IKLeftHand = HitPoint +Character->GetActorForwardVector() * 5;
+			IKLeftHand.Z = HitResultLeft.ImpactPoint.Z-5.f;
+		}
+	}
+
+	FVector RightStartVec = FrontWallTracer->GetComponentLocation() + Character->GetActorRightVector()*7;
+	FVector RightEndVec = RightStartVec + Character->GetActorForwardVector() * 80.f;
+	if (UKismetSystemLibrary::SphereTraceSingle(GetWorld(), RightStartVec, RightEndVec, 5.f, UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1), 		
+		false, ActorsToIgnore, EDrawDebugTrace::ForOneFrame, HitResult2, true))
+	{
+		FVector HitPoint(HitResult2.ImpactPoint);
+		FHitResult HitResultRight;
+		if (UKismetSystemLibrary::SphereTraceSingle(GetWorld(), HitPoint + FVector(0.f, 0.f, 20.f), HitPoint, 5.f, UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
+			false, ActorsToIgnore, EDrawDebugTrace::ForOneFrame, HitResultRight, true))
+		{
+			IKRightHand = HitPoint+Character->GetActorForwardVector()*5;
+			IKRightHand.Z = HitResultRight.ImpactPoint.Z-5.f;
+		}
+	}
+}

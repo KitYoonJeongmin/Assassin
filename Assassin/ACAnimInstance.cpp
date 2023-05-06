@@ -35,12 +35,16 @@ void UACAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	//Jump
 	IsFalling = Character->GetMovementComponent()->IsFalling();
 
-	//IK
+	//Foot IK
 	FootRotL = FootIKComp->m_pFootRotation_Left;
 	FootRotR = FootIKComp->m_pFootRotation_Right;
 	HipOffset = FootIKComp->m_fHipOffset;
 	FootOffsetL = FootIKComp->m_fFootOffsetLeft;
 	FootOffsetR = FootIKComp->m_fFootOffsetRight;
+
+	//HandIK
+	IKLeftHandLoc = Character->ClimbingComp->IKLeftHand;
+	IKRightHandLoc = Character->ClimbingComp->IKRightHand;
 
 	//MoveTo Other Ledge
 	CanMoveOtherLedge = Character->ClimbingComp->ClimbingState.CanMoveOnLedge;

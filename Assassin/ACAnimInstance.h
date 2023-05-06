@@ -52,6 +52,13 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = FootIK, Meta = (AllowPrivateAccess = true))
 	float FootOffsetR;
 
+	//HandIK
+private:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = HandIK, Meta = (AllowPrivateAccess = true))
+	FVector IKLeftHandLoc;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = HandIK, Meta = (AllowPrivateAccess = true))
+	FVector IKRightHandLoc;
+
 	//Climbing
 public:
 	virtual void UpdateMovementState(EMovementState CurrentState) override;
@@ -79,4 +86,6 @@ private:
 	float InputRightAxis;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Climbing, Meta = (AllowPrivateAccess = true))
 	float InputForwardAxis;
+
+
 };

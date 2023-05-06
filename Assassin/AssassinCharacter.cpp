@@ -229,6 +229,7 @@ void AAssassinCharacter::JumpStart()
 	switch (CurrnetMovementState)
 	{
 	case EMovementState::E_Walking:
+		UE_LOG(LogTemp, Warning, TEXT("00000"));
 		//점프시 앞에 벽이 있고 잡을 수 있다면
 		ClimbingComp->GetWallHeight();
 		if (ClimbingComp->ClimbingState.CanClimbOnLedge == true)
