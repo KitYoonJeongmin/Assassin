@@ -11,7 +11,7 @@
 UENUM(BlueprintType)	
 enum class EMovementState : uint8
 {
-	E_Walking = 0   UMETA(DisplayName = "Walking"),	//! DisplayName은 언리얼 에디터, 블루프린트에서 표시되는 이름입니다.
+	E_Walking = 0   UMETA(DisplayName = "Walking"),	
 	E_OnLedge		UMETA(DisplayName = "OnLedge"),
 	E_Hanging		UMETA(DisplayName = "Hanging"),
 	E_Jumping		UMETA(DisplayName = "Jumping"),

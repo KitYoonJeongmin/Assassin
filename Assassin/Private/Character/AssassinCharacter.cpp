@@ -1,7 +1,10 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AssassinCharacter.h"
-#include "ACAnimInstance.h"
+#include "Character/AssassinCharacter.h"
+#include "Character/ACAnimInstance.h"
+#include "Component/FootIKComponent.h"
+#include "Weapons/Weapon.h"
+#include "Weapons/Sword.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
@@ -11,6 +14,8 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "Kismet/KismetMathLibrary.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -33,12 +38,14 @@ AAssassinCharacter::AAssassinCharacter()
 
 	WalkSpeed = 300.f;
 	RunSpeed = 600.f;
+	TargetWalkSpeed = WalkSpeed;
 	// Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
 	// instead of recompiling to adjust them
 	GetCharacterMovement()->JumpZVelocity = 700.f;
 	GetCharacterMovement()->AirControl = 0.35f;
 	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
-	GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
+	GetCharacterMovement()->RotationRate = FRotator(0.f, 360.f, 0.f);
+	GetCharacterMovement()->MinAnalogWalkSpeed = 50.f;
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
 
 	// Create a camera boom (pulls in towards the player if there is a collision)
@@ -55,19 +62,24 @@ AAssassinCharacter::AAssassinCharacter()
 	//Climbing Component
 	CurrnetMovementState = EMovementState::E_Walking;
 	ClimbingComp = CreateDefaultSubobject<UClimbingComponent>(TEXT("ClimbingComponent"));
+	//IK
+	FootIKComp = CreateDefaultSubobject<UFootIKComponent>(TEXT("FootIK"));
+	//Dead
+	IsDead = false;
 }
 void AAssassinCharacter::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 	//AnimInstance
 	ACAnim = Cast<UACAnimInstance>(GetMesh()->GetAnimInstance());
-	
+	//Anim IK
+	FootIKComp->m_pCharacter = this;
+
 }
 void AAssassinCharacter::BeginPlay()
 {
 	// Call the base class  
 	Super::BeginPlay();
-
 	//Add Input Mapping Context
 	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
 	{
@@ -76,19 +88,17 @@ void AAssassinCharacter::BeginPlay()
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
 	}
-	//Anim
-	TArray<USceneComponent*> ChildrenMesh;
-	GetMesh()->GetChildrenComponents(true, ChildrenMesh);
-	for (auto mesh : ChildrenMesh)
-	{
-		if (Cast<USkeletalMeshComponent>(mesh))
-			MeshArr.Add(Cast<USkeletalMeshComponent>(mesh));
-	}
+
+	//Character Weapons Spawn
+	Weapon.SwordWeapon = GetWorld()->SpawnActor<ASword>(FVector::ZeroVector, FRotator::ZeroRotator);
+	AttachWeaponTo(Weapon.SwordWeapon, FName("SwordSocket"), false);
+	Weapon.SwordWeapon->InitializeWeapon();
+	ACAnim->PlayEquipMontage(true);
 }
 
 void AAssassinCharacter::Tick(float DeltaTime)
 {
-	
+	Super::Tick(DeltaTime);
 	switch (GetCharacterMovement()->MovementMode)
 	{
 	case MOVE_Walking:
@@ -102,8 +112,14 @@ void AAssassinCharacter::Tick(float DeltaTime)
 		isWalk = false;
 		break;
 	}
-	//const UEnum* CharStateEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EMovementState"), true);
-	//GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Green, CharStateEnum->GetNameByValue((int64)ACAnim->CurrnetMovementState).ToString());
+
+
+	//MoveSpeed
+	float InterpSpeed = 0.5f;
+	float Alpha = FMath::Clamp(DeltaTime / InterpSpeed, 0.0f, 1.0f);
+	float NewWalkSpeed = FMath::Lerp(GetCharacterMovement()->MaxWalkSpeed, TargetWalkSpeed, Alpha);
+	GetCharacterMovement()->MaxWalkSpeed = NewWalkSpeed;
+
 }
 
 
@@ -134,6 +150,7 @@ void AAssassinCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 
 		//Falling
 		EnhancedInputComponent->BindAction(FallAction, ETriggerEvent::Started, this, &AAssassinCharacter::Fall);
+		EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Started, this, &AAssassinCharacter::Attack);
 	}
 
 }
@@ -175,7 +192,6 @@ void AAssassinCharacter::Move(const FInputActionValue& Value)
 					else
 					{
 						ACAnim->SetCanMoveLedge(false, false);	//이동불가
-						//ClimbingComp->FindLedge(MovementVector.X, MovementVector.Y);	//주변 Ledge찾음
 					}
 				}
 				else
@@ -187,14 +203,9 @@ void AAssassinCharacter::Move(const FInputActionValue& Value)
 					else
 					{
 						ACAnim->SetCanMoveLedge(false, false);	//이동불가
-						//ClimbingComp->FindLedge(MovementVector.X, MovementVector.Y);	//주변 Ledge찾음
 					}
 				}
 			}
-			//if (MovementVector.Y != 0)
-			//{
-			//	
-			//}
 			break;
 		}
 		
@@ -203,6 +214,17 @@ void AAssassinCharacter::Move(const FInputActionValue& Value)
 
 void AAssassinCharacter::MoveEnd(const FInputActionValue& Value)
 {
+	MovementVector.X = 0;
+	MovementVector.Y = 0;
+	if (Value.Get<FVector2D>().X > 0)
+	{
+		MovementVector.X = 0;
+	}
+	if (Value.Get<FVector2D>().Y > 0)
+	{
+		MovementVector.Y = 0;
+	}
+	
 	switch (GetCharacterMovement()->MovementMode)
 	{
 	case MOVE_Flying:	//매달려 있을 때 idle상태로 돌아감
@@ -246,12 +268,6 @@ void AAssassinCharacter::JumpStart()
 		ClimbingComp->ClimbUp();
 		if (MovementVector.Y >= 0&& ClimbingComp->ClimbingState.ClimbUpLedge)//매달린 상태에서 올라갈 수 있다면
 		{
-			//DisableInput(Cast<APlayerController>(GetController()));
-			for (auto mesh : MeshArr)
-			{
-				Cast<UACAnimInstance>(mesh->GetAnimInstance())->UpdateMovementState(EMovementState::E_Walking);
-				Cast<UACAnimInstance>(mesh->GetAnimInstance())->PlayClimbUpMon();
-			}
 			ACAnim->UpdateMovementState(EMovementState::E_Walking);
 			ACAnim->PlayClimbUpMon();
 			return;
@@ -274,12 +290,14 @@ void AAssassinCharacter::JumpStart()
 
 void AAssassinCharacter::Run()
 {
-	GetCharacterMovement()->MaxWalkSpeed = RunSpeed;
+	//GetCharacterMovement()->MaxWalkSpeed = RunSpeed;
+	TargetWalkSpeed = RunSpeed;
 }
 
 void AAssassinCharacter::RunEnd()
 {
-	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+	//GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+	TargetWalkSpeed = WalkSpeed;
 }
 
 void AAssassinCharacter::Fall()
@@ -290,10 +308,7 @@ void AAssassinCharacter::Fall()
 		ClimbingComp->DropToHang();
 		break;
 	case EMovementState::E_Hanging:
-		for (auto mesh : MeshArr)
-		{
-			Cast<UACAnimInstance>(mesh->GetAnimInstance())->UpdateMovementState(EMovementState::E_Walking);
-		}
+		ACAnim->UpdateMovementState(EMovementState::E_Walking);
 		ClimbingComp->Fall();
 		break;
 	}
@@ -305,6 +320,87 @@ void AAssassinCharacter::UpdateMovementState(EMovementState CurrentState)
 {
 	CurrnetMovementState = CurrentState;
 	ACAnim->UpdateMovementState(CurrnetMovementState);
+}
+
+
+float AAssassinCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	float FinalDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+
+	
+	//Push back
+	FVector DamagedFrom = DamageCauser ? DamageCauser->GetActorLocation() : GetActorLocation();
+	FVector DamageDirection = DamagedFrom - GetActorLocation();
+	DamageDirection.Normalize();
+	DamageDirection.Z = 0.f;
+	DamageDirection *= -1;
+	
+	FHitResult HitResult;
+	TArray<AActor*> ActorsToIgnore;
+	ActorsToIgnore.Add(this);
+	ActorsToIgnore.Add(DamageCauser);
+	FVector StartLoc = GetActorLocation() + DamageDirection * 50.f;
+	FVector EndLoc = StartLoc + DamageDirection * 70.f;
+	FVector KnockbackPos = EndLoc;
+	bool IsExist = UKismetSystemLibrary::SphereTraceSingle(
+		GetWorld(),
+		StartLoc,
+		EndLoc,
+		50.f,
+		UEngineTypes::ConvertToTraceType(ECC_Visibility),
+		false,
+		ActorsToIgnore,
+		EDrawDebugTrace::None,
+		HitResult,
+		true
+		, FLinearColor::Red
+		, FLinearColor::Green
+		, 3.0f
+	);
+	
+	if (IsExist)
+	{
+		KnockbackPos = HitResult.ImpactPoint;
+		KnockbackPos.Z = StartLoc.Z;
+		FVector ErrorDistance = GetActorLocation()- KnockbackPos;
+		ErrorDistance.Normalize();
+		KnockbackPos += ErrorDistance * 25.f;
+	}
+	FLatentActionInfo Info;
+	Info.CallbackTarget = this;
+	//UKismetSystemLibrary::MoveComponentTo(GetCapsuleComponent(), KnockbackPos, GetActorRotation(), false, false, 0.2f, false, EMoveComponentAction::Type::Move, Info);
+	
+	//MontagePlay
+	ACAnim->PlaySwordHitMontage(DamageDirection);
+	
+	return FinalDamage;
+}
+
+void AAssassinCharacter::Attack()
+{
+	if (CurrentWeapon == nullptr) return;
+	CurrentWeapon->Attack();
+}
+
+void AAssassinCharacter::AttachWeaponTo(AWeapon* SwitchingWeapon, FName WeaponSocket, bool isEquip)
+{
+	if (nullptr == SwitchingWeapon) return;
+	
+	SwitchingWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, WeaponSocket);
+	SwitchingWeapon->SetOwner(this);
+
+	if (isEquip)
+	{
+		CurrentWeapon = SwitchingWeapon;
+		if (Cast<ASword>(SwitchingWeapon))
+		{
+			ACAnim->WeaponState = EWeaponState::E_Sword;
+		}
+		else
+		{
+			ACAnim->WeaponState = EWeaponState::E_Daggle;
+		}
+	}
 }
 
 

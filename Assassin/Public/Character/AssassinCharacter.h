@@ -5,11 +5,20 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "InputActionValue.h"
-#include "ClimbingComponent.h"
-#include "ClimbingMovement.h"
+#include "Component/ClimbingComponent.h"
+#include "Component/ClimbingMovement.h"
 #include "AssassinCharacter.generated.h"
 
+USTRUCT(BlueprintType)
+struct FWeapons
+{
+public:
+	GENERATED_USTRUCT_BODY()
 
+	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
+	class ASword* SwordWeapon;
+
+};
 UCLASS(config=Game)
 class AAssassinCharacter : public ACharacter, public IClimbingMovement
 {
@@ -46,6 +55,9 @@ class AAssassinCharacter : public ACharacter, public IClimbingMovement
 	/** Jump Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputAction* FallAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	class UInputAction* AttackAction;
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
 	FVector2D MovementVector;
@@ -54,6 +66,8 @@ private:
 	float WalkSpeed;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	float RunSpeed;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	float TargetWalkSpeed;
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Mesh)
 	TArray<USkeletalMeshComponent*> MeshArr;
@@ -105,5 +119,31 @@ public:
 	class UClimbingComponent* ClimbingComp;
 private:
 	bool isWalk = false;
+
+//FootIK
+public:
+	class UFootIKComponent* FootIKComp;
+	
+//Attack
+public:
+	void Attack();
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+
+//Weapon
+public:
+	FWeapons Weapon;
+	/**무기를 원하는 소켓에 붙이는 함수*/
+	void AttachWeaponTo(class AWeapon* SwitchingWeapon, FName WeaponSocket, bool isEquip);
+private:
+	/**현재 손에 있는 무기*/
+	class AWeapon* CurrentWeapon;
+
+//Dead
+public:
+	bool GetIsDead() { return IsDead; }
+
+private:
+	bool IsDead;
+
 };
 

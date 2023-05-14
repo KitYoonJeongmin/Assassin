@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AssassinGameMode.h"
-#include "AssassinCharacter.h"
+#include "GameFrameworks/AssassinGameMode.h"
+#include "Character/AssassinCharacter.h"
 #include "UObject/ConstructorHelpers.h"
 
 AAssassinGameMode::AAssassinGameMode()

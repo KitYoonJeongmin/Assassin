@@ -1,9 +1,9 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "ClimbingComponent.h"
-#include "ACAnimInstance.h"
-#include "AssassinCharacter.h"
+#include "Component/ClimbingComponent.h"
+#include "Character/ACAnimInstance.h"
+#include "Character/AssassinCharacter.h"
 #include "GameFramework/Character.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -150,7 +150,7 @@ void UClimbingComponent::GetWallHeight()
 		UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
 		false,
 		ActorsToIgnore,
-		EDrawDebugTrace::ForDuration,
+		EDrawDebugTrace::None,
 		HightHitResult,
 		true
 		, FLinearColor::Red
@@ -253,7 +253,7 @@ bool UClimbingComponent::LedgeMoveLeft()
 		UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
 		false,
 		ActorsToIgnore,
-		EDrawDebugTrace::ForOneFrame,
+		EDrawDebugTrace::None,
 		HitResult,
 		true
 		, FLinearColor::Red
@@ -274,7 +274,7 @@ bool UClimbingComponent::LedgeMoveLeft()
 			UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
 			false,
 			ActorsToIgnore,
-			EDrawDebugTrace::ForOneFrame,
+			EDrawDebugTrace::None,
 			HitResult,
 			true
 			, FLinearColor::Red
@@ -294,7 +294,7 @@ bool UClimbingComponent::LedgeMoveLeft()
 				UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
 				false,
 				ActorsToIgnore,
-				EDrawDebugTrace::ForOneFrame,
+				EDrawDebugTrace::None,
 				HitResult,
 				true
 				, FLinearColor::Red
@@ -342,7 +342,7 @@ bool UClimbingComponent::LedgeMoveRight()
 		UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
 		false,
 		ActorsToIgnore,
-		EDrawDebugTrace::ForOneFrame,
+		EDrawDebugTrace::None,
 		HitResult,
 		true
 		, FLinearColor::Red
@@ -365,7 +365,7 @@ bool UClimbingComponent::LedgeMoveRight()
 			UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
 			false,
 			ActorsToIgnore,
-			EDrawDebugTrace::ForOneFrame,
+			EDrawDebugTrace::None,
 			HitResult,
 			true
 			, FLinearColor::Red
@@ -385,7 +385,7 @@ bool UClimbingComponent::LedgeMoveRight()
 				UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
 				false,
 				ActorsToIgnore,
-				EDrawDebugTrace::ForOneFrame,
+				EDrawDebugTrace::None,
 				HitResult,
 				true
 				, FLinearColor::Red
@@ -489,7 +489,7 @@ void UClimbingComponent::Fall()
 
 void UClimbingComponent::DropToHang()
 {
-	FVector FeetLoc = (Character->MeshArr[1]->GetSocketLocation(FName("ball_l")) + Character->MeshArr[1]->GetSocketLocation(FName("ball_r"))) / 2.f;
+	FVector FeetLoc = (Character->GetMesh()->GetSocketLocation(FName("ball_l")) + Character->GetMesh()->GetSocketLocation(FName("ball_r"))) / 2.f;
 	FVector StartLoc = FeetLoc + Character->GetActorUpVector() * 20;
 	FVector EndLoc = FeetLoc - Character->GetActorUpVector() * 20;
 	FHitResult UpHitResult;
@@ -503,7 +503,7 @@ void UClimbingComponent::DropToHang()
 		UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
 		false,
 		ActorsToIgnore,
-		EDrawDebugTrace::ForDuration,
+		EDrawDebugTrace::None,
 		UpHitResult,
 		true
 		, FLinearColor::Red
@@ -524,7 +524,7 @@ void UClimbingComponent::DropToHang()
 			UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
 			false,
 			ActorsToIgnore,
-			EDrawDebugTrace::ForDuration,
+			EDrawDebugTrace::None,
 			SideHitResult,
 			true
 			, FLinearColor::Blue
@@ -538,16 +538,15 @@ void UClimbingComponent::DropToHang()
 			LedgeLocation.Z = (UpHitResult.ImpactPoint.Z - LedgeHightLocationZ);
 
 			Character->CurrnetMovementState = EMovementState::E_Hanging;
-			for (auto mesh : Character->MeshArr)
-			{
-				Cast<UACAnimInstance>(mesh->GetAnimInstance())->CurrnetMovementState = EMovementState::E_Hanging;
-			}
+			
+			Character->ACAnim->CurrnetMovementState = EMovementState::E_Hanging;
 			ClimbingState.CanClimbOnLedge = true;
 			ClimbingState.CanMoveOnLedge = false;
 			ClimbingState.ClimbUpLedge = false;
 			ClimbingState.DropDown = false;
 			ClimbingState.HighMantle = false;
 			ClimbingState.CanMoveToSide = false;
+			
 			MoveToLedge();
 		}
 	}
@@ -594,7 +593,7 @@ void UClimbingComponent::FindLedge(float Right, float Up)
 	
 	double LedgeDistance = 999999999.f;
 	FVector DebugLoc;
-	FVector HandLoc = (Character->MeshArr[0]->GetSocketLocation(FName("hand_lSocket")) + Character->MeshArr[0]->GetSocketLocation(FName("hand_rSocket"))) / 2.f;
+	FVector HandLoc = (Character->GetMesh()->GetSocketLocation(FName("hand_lSocket")) + Character->GetMesh()->GetSocketLocation(FName("hand_rSocket"))) / 2.f;
 	for (int8 i = -7; i < 7; i++)
 	{
 		for (int8 j = -7; j < 7; j++)
@@ -617,7 +616,7 @@ void UClimbingComponent::FindLedge(float Right, float Up)
 				UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
 				false,
 				ActorsToIgnore,
-				EDrawDebugTrace::ForDuration,
+				EDrawDebugTrace::None,
 				SideHitResult,
 				true
 				, FLinearColor::Gray
@@ -639,7 +638,7 @@ void UClimbingComponent::FindLedge(float Right, float Up)
 				UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
 				false,
 				ActorsToIgnore,
-				EDrawDebugTrace::ForDuration,
+				EDrawDebugTrace::None,
 				UpHitResult,
 				true
 				, FLinearColor::Green
@@ -706,30 +705,30 @@ void UClimbingComponent::HandIK()
 	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
 	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_GameTraceChannel6));
 
-	FVector LeftStartVec = FrontWallTracer->GetComponentLocation() - Character->GetActorRightVector() * 7;
+	FVector LeftStartVec = FrontWallTracer->GetComponentLocation() - Character->GetActorRightVector() * 5;
 	FVector LeftEndVec = LeftStartVec + Character->GetActorForwardVector() * 80.f;
 	if (UKismetSystemLibrary::SphereTraceSingle(GetWorld(), LeftStartVec, LeftEndVec, 5.f, UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
-		false, ActorsToIgnore, EDrawDebugTrace::ForOneFrame, HitResult1, true))
+		false, ActorsToIgnore, EDrawDebugTrace::None, HitResult1, true))
 	{
 		FVector HitPoint(HitResult1.ImpactPoint);
 		FHitResult HitResultLeft;
 		if (UKismetSystemLibrary::SphereTraceSingle(GetWorld(), HitPoint + FVector(0.f, 0.f, 20.f), HitPoint, 5.f, UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
-			false, ActorsToIgnore, EDrawDebugTrace::ForOneFrame, HitResultLeft, true))
+			false, ActorsToIgnore, EDrawDebugTrace::None, HitResultLeft, true))
 		{
 			IKLeftHand = HitPoint +Character->GetActorForwardVector() * 5;
 			IKLeftHand.Z = HitResultLeft.ImpactPoint.Z-5.f;
 		}
 	}
 
-	FVector RightStartVec = FrontWallTracer->GetComponentLocation() + Character->GetActorRightVector()*7;
+	FVector RightStartVec = FrontWallTracer->GetComponentLocation() + Character->GetActorRightVector() * 5;
 	FVector RightEndVec = RightStartVec + Character->GetActorForwardVector() * 80.f;
 	if (UKismetSystemLibrary::SphereTraceSingle(GetWorld(), RightStartVec, RightEndVec, 5.f, UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1), 		
-		false, ActorsToIgnore, EDrawDebugTrace::ForOneFrame, HitResult2, true))
+		false, ActorsToIgnore, EDrawDebugTrace::None, HitResult2, true))
 	{
 		FVector HitPoint(HitResult2.ImpactPoint);
 		FHitResult HitResultRight;
 		if (UKismetSystemLibrary::SphereTraceSingle(GetWorld(), HitPoint + FVector(0.f, 0.f, 20.f), HitPoint, 5.f, UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel1),
-			false, ActorsToIgnore, EDrawDebugTrace::ForOneFrame, HitResultRight, true))
+			false, ActorsToIgnore, EDrawDebugTrace::None, HitResultRight, true))
 		{
 			IKRightHand = HitPoint+Character->GetActorForwardVector()*5;
 			IKRightHand.Z = HitResultRight.ImpactPoint.Z-5.f;

@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "FootIKComponent.h"
+#include "Component/FootIKComponent.h"
 #include "GameFramework/Character.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -51,6 +51,7 @@ void UFootIKComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActo
 
 ST_IK_TraceInfo UFootIKComponent::IKFootTrace(float fTraceDistance, FName sSocket)
 {
+   
     ST_IK_TraceInfo pTraceInfo;
 
     //! Set Linetraces startpoint and end point
@@ -64,7 +65,7 @@ ST_IK_TraceInfo UFootIKComponent::IKFootTrace(float fTraceDistance, FName sSocke
     TArray<AActor*> pIgnore;
     pIgnore.Add(GetOwner());
 
-    bool bDebug = false;
+    bool bDebug = true;
     EDrawDebugTrace::Type eDebug = EDrawDebugTrace::None;
     if (bDebug == true) eDebug = EDrawDebugTrace::ForOneFrame;
 
