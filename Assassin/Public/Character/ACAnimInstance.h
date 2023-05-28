@@ -23,6 +23,7 @@ enum class EWeaponState : uint8
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnNextAttackCheckDelegate);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAttackEnableHitCheckDelegate);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAttackDisableHitCheckDelegate);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnFinishedDelegate);
 
 UCLASS()
 class ASSASSIN_API UACAnimInstance : public UAnimInstance, public IClimbingMovement
@@ -36,6 +37,8 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Character, Meta = (AllowPrivateAccess = true))
 		float CurrentPawnSpeed;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Character, Meta = (AllowPrivateAccess = true))
+		float CurrentDirection;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Character, Meta = (AllowPrivateAccess = true))
 		bool IsFalling;
 private:
 	UPROPERTY()
@@ -48,9 +51,13 @@ public:
 	FOnNextAttackCheckDelegate OnNextAttackCheck;
 	FOnAttackEnableHitCheckDelegate OnEnableAttackHitCheck;
 	FOnAttackDisableHitCheckDelegate OnDisableAttackHitCheck;
+	FOnFinishedDelegate OnFinished;
 
 	//Montage
 public:
+	/**몽타주의 우선순위를 계산 후 실행*/
+	bool PlayMontagePriority(UAnimMontage* PlayMontage, float PlayRate);
+
 	/**Climbing idle상태의 Montage*/
 	void PlayClimbingIdleMon();
 	/**Climbing 시작시 올라가기 위한 Montage*/
@@ -61,8 +68,23 @@ public:
 	/**Sword 콤보 어택 Montage*/
 	void PlaySwordAttackMontage();
 	/**Sword에게 맞았을 때*/
-	void PlaySwordHitMontage(FVector AttackVector);
+	void PlaySwordHitMontage();
+	/**Sword Roll*/
+	void PlaySwordRollMontage();
+	/**Parry Montage*/
+	void PlaySwordParryMontage(int32 MontageIndex);
+	/**Finisher Montage*/
+	class UAnimMontage* PlayFinisherMontage();
+	void PlayFinishedMontage(UAnimMontage* FinisherMon);
+	void PlaySwordDeathMontage();
+
+	/**Assassination Montage*/
+	class UAnimMontage* PlayAssassinMontage();
+	void PlayAssassinedMontage(UAnimMontage* FinisherMon);
+
 private:
+	//Priority
+	TArray<UAnimMontage*> MontagePriority;
 	//Climbing
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Climbing, Meta = (AllowPrivateAccess = true))
 	class UAnimMontage* ClimbingIdleMon;
@@ -70,12 +92,31 @@ private:
 	class UAnimMontage* ClimbUpMon;
 
 	//Sword
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SwordAttack, Meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SwordCombat, Meta = (AllowPrivateAccess = true))
 	class UAnimMontage* SwordEquipMon;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SwordAttack, Meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SwordCombat, Meta = (AllowPrivateAccess = true))
 	class UAnimMontage* SwordAttackMon;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SwordAttack, Meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SwordCombat, Meta = (AllowPrivateAccess = true))
 	class UAnimMontage* SwordHitMon;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SwordCombat, Meta = (AllowPrivateAccess = true))
+	class UAnimMontage* SwordBlockHitMon;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SwordCombat, Meta = (AllowPrivateAccess = true))
+	class UAnimMontage* SwordRollMon;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SwordCombat, Meta = (AllowPrivateAccess = true))
+	class UAnimMontage* SwordParryMon;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SwordCombat, Meta = (AllowPrivateAccess = true))
+	class UAnimMontage* SwordDeathMon;
+
+	//Finisher
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Finisher, Meta = (AllowPrivateAccess = true))
+	TMap<UAnimMontage*, UAnimMontage*> SwordFinisherMap;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Finisher, Meta = (AllowPrivateAccess = true))
+	TMap<UAnimMontage*, float> SwordFinisherDistanceMap;
+
+	//Assassination
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Assassination, Meta = (AllowPrivateAccess = true))
+	TMap<UAnimMontage*, UAnimMontage*> AssassinationMap;
 
 	//FootIK
 private:
@@ -101,6 +142,7 @@ private:
 	//Climbing
 public:
 	virtual void UpdateMovementState(EMovementState CurrentState) override;
+	void MoveToLedge(bool IsStarted);
 	void SetCanMoveLedge(bool Left, bool Right);
 	UFUNCTION()
 	void AnimNotify_ClimbJump();
@@ -141,6 +183,29 @@ public:
 	void AnimNotify_Equipment();
 	UFUNCTION()
 	void AnimNotify_UnEquipment();
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Weapon)
 	EWeaponState WeaponState;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Sword)
+	bool IsBlock;
+
+// Finish
+	float GetDistancebySwordFinish(UAnimMontage* FinisherMon);
+	UFUNCTION()
+	void AnimNotify_Death();
+	UFUNCTION()
+	void AnimNotify_Camera();
+	UFUNCTION()
+	void AnimNotify_CameraEnd();
+
+private:
+//HeadTracking
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = HeadTracking, Meta = (AllowPrivateAccess = true))
+	bool CanHeadTracking;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = HeadTracking, Meta = (AllowPrivateAccess = true))
+	FVector HeadTrackingTargetLoc;	//보간 하는 변수
+	FVector HeadTrackingTarget;	//보간 Target 변수
+	float HeadTrackingRadius;
+	void TrackHead();
+
 };

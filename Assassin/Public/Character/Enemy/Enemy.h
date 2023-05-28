@@ -13,5 +13,12 @@ UCLASS()
 class ASSASSIN_API AEnemy : public AAssassinCharacter
 {
 	GENERATED_BODY()
+
+public:
+	AEnemy();
+	virtual void PostInitializeComponents() override;
+	virtual void BeginPlay() override;
+	virtual void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted) override;
+	virtual void Dead() override;
 	
 };

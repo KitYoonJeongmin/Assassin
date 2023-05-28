@@ -9,6 +9,7 @@
 #include "Component/ClimbingMovement.h"
 #include "AssassinCharacter.generated.h"
 
+
 USTRUCT(BlueprintType)
 struct FWeapons
 {
@@ -17,13 +18,19 @@ public:
 
 	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
 	class ASword* SwordWeapon;
+	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
+	class ADaggle* DaggleWeapon;
 
 };
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStunStartDelegate);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStunEndDelegate);
+
 UCLASS(config=Game)
 class AAssassinCharacter : public ACharacter, public IClimbingMovement
 {
 	GENERATED_BODY()
-
+public:
 	/** Camera boom positioning the camera behind the character */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class USpringArmComponent* CameraBoom;
@@ -56,12 +63,26 @@ class AAssassinCharacter : public ACharacter, public IClimbingMovement
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputAction* FallAction;
 
+	/**Attack Input Action*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputAction* AttackAction;
+
+	/**Block Input Action*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	class UInputAction* BlockAction;
+
+	/**Equip Input Action*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	class UInputAction* EquipAction;
+
+	/**Parry Input Action*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	class UInputAction* ParryAction;
+
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
 	FVector2D MovementVector;
-private:
+protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	float WalkSpeed;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
@@ -104,17 +125,26 @@ public:
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 public:
 	UFUNCTION()
+	void RunStart();
+	UFUNCTION()
 	void Run();
 	UFUNCTION()
 	void RunEnd();
 	UFUNCTION()
 	void Fall();
+	void SetWalkSpeed(float TargetSpeed);
+
+
+//Animation
+public:
+	UACAnimInstance* ACAnim;
+	UFUNCTION()
+	virtual void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
 //Climbing
 public:
 	virtual void UpdateMovementState(EMovementState CurrentState) override;
 	EMovementState CurrnetMovementState;
-	UACAnimInstance* ACAnim;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Climbing)
 	class UClimbingComponent* ClimbingComp;
 private:
@@ -122,18 +152,37 @@ private:
 
 //FootIK
 public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = IK)
 	class UFootIKComponent* FootIKComp;
 	
 //Attack
 public:
 	void Attack();
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+	FOnStunStartDelegate OnStunStart;
+	FOnStunEndDelegate OnStunEnd;
+
+//Block
+public:
+	void BlockStart();
+	void BlockEnd();
+private:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	class UNiagaraSystem* SparkN;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	class UNiagaraSystem* BloodN;
+//Parry
+
+public:
+	void TryParry();
 
 //Weapon
 public:
+	void EquipWeapon();
 	FWeapons Weapon;
 	/**무기를 원하는 소켓에 붙이는 함수*/
-	void AttachWeaponTo(class AWeapon* SwitchingWeapon, FName WeaponSocket, bool isEquip);
+	virtual void AttachWeaponTo(class AWeapon* SwitchingWeapon, FName WeaponSocket, bool isEquip);
+	AWeapon* GetCurrentWeapon() { return CurrentWeapon; }
 private:
 	/**현재 손에 있는 무기*/
 	class AWeapon* CurrentWeapon;
@@ -141,9 +190,21 @@ private:
 //Dead
 public:
 	bool GetIsDead() { return IsDead; }
-
-private:
+	/**죽음 상태로 변경*/
+	virtual void Dead();
+protected:
+	float HealthPoint;
 	bool IsDead;
 
+public:
+	float GetHealthPoint();
+
+//Assassination
+public:
+	class UMotionWarpingComponent* MotionWarpingComp;
+
+//Custom Depth
+public:
+	void SetCustomDepth(bool IsEnable);
 };
 

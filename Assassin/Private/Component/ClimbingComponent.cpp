@@ -677,18 +677,22 @@ void UClimbingComponent::FindLedge(float Right, float Up)
 		DrawDebugSphere(GetWorld(), LedgeLocation, 20, 10, FColor(0, 181, 0), false, 2.f);
 		DrawDebugSphere(GetWorld(), HandLoc, 10, 10, FColor(255, 255, 255), false, 2.f);
 	}*/
+	
+	//성공적으로 난간을 찾아 움직일 상태라면
 	if (ClimbingState.CanMoveOnLedge)
 	{
 		Character->GetController()->DisableInput(Cast<APlayerController>(Character->GetController()));
-		FTimerDelegate TimerDelegate;
+		Character->ACAnim->MoveToLedge(ClimbingState.CanMoveOnLedge);
+		/*FTimerDelegate TimerDelegate;
 		TimerDelegate.BindLambda([&]
 			{
 				Character->GetController()->EnableInput(Cast<APlayerController>(Character->GetController()));
-				ClimbingState.CanMoveOnLedge = false;
+				Character->ClimbingComp->ClimbingState.CanMoveOnLedge = false;
+				Character->ACAnim->MoveToLedge(false);
 			});
 
 		FTimerHandle TimerHandle;
-		GetWorld()->GetTimerManager().SetTimer(TimerHandle, TimerDelegate, 2.5, false);
+		GetWorld()->GetTimerManager().SetTimer(TimerHandle, TimerDelegate, 1.8, false);*/
 	}
 	return; 
 }

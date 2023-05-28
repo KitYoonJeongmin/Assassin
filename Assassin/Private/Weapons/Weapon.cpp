@@ -3,7 +3,13 @@
 
 #include "Weapons/Weapon.h"
 #include "Character/AssassinCharacter.h"
+#include "Character/ACAnimInstance.h"
+#include "Component/FinisherComponent.h"
+
+#include "Components/CapsuleComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "Kismet/KismetSystemLibrary.h"
 
 // Sets default values
 AWeapon::AWeapon()
@@ -12,7 +18,10 @@ AWeapon::AWeapon()
 	PrimaryActorTick.bCanEverTick = true;
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MESH"));
 	RootComponent = Mesh;
+	FinisherComp = CreateDefaultSubobject<UFinisherComponent>(TEXT("FINISHER"));
 	Mesh->SetCollisionProfileName(TEXT("NoCollision"));
+	IsAttacking = false;
+	IsUsed = false;
 }
 
 // Called when the game starts or when spawned
@@ -26,12 +35,27 @@ void AWeapon::BeginPlay()
 void AWeapon::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
+	if(!IsUsed) return;
+	/*FRotator Rot = GetActorRotation();
+	Rot.Pitch += 0.1f;
+	SetActorRotation(Rot);*/
 }
 
 void AWeapon::InitializeWeapon()
 {
 	Character = Cast<AAssassinCharacter>(GetAttachParentActor());
 }
-
-
+void AWeapon::Detach()
+{
+	UPrimitiveComponent* WeaponPrimitive = Cast<UPrimitiveComponent>(RootComponent);
+	if (WeaponPrimitive != nullptr)
+	{
+		DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		WeaponPrimitive->SetCollisionProfileName("DetachWeapon");
+		WeaponPrimitive->SetSimulatePhysics(true);
+		WeaponPrimitive->SetEnableGravity(true);
+	}
+	
+}
+bool AWeapon::GetIsAttacking() { return IsAttacking; }
+UFinisherComponent* AWeapon::GetFinisherComponent() { return FinisherComp; }

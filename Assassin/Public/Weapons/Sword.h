@@ -34,6 +34,8 @@ public:
 	void AttackEndComboState();
 	/**공격을 체크하기위해 LineTrace를 공격범위에 생성*/
 	void AttackCheck();
+	/**가장 가까운 적앞으로 이동*/
+	void MoveToNearestEnemy();
 	/**콤보 공격을 실행하는 함수*/
 	virtual void Attack() override;
 
@@ -44,11 +46,11 @@ public:
 	UFUNCTION()
 	void OnNextAttackCheck();
 
-	
+public:
+	ETraceTypeQuery SwordAttackType;
 private:
 	bool CanNextCombo;
 	bool CanAttackCheck;
-	bool IsAttacking;
 	bool IsComboInputOn;
 	int32 CurrentCombo;
 	FVector AttackHitVec;
@@ -57,15 +59,35 @@ private:
 	float EnemyDetectRange;
 	float EnemyDetectFOV;
 
+	
 	//NearEnemy
 public:
-	class AEnemy* FindNearestEnemey(TArray<class AEnemy*> EnemyArr);
+	void SetNearestEnemy(class AAssassinCharacter* Target);
 private:
 	float NearEnemyRange;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy", meta = (AllowPrivateAccess = "true"))
-	class AEnemy* NearestEnemy;
+	class AAssassinCharacter* NearestEnemy;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player", meta = (AllowPrivateAccess = "true"))
 	class APlayerCharacter* Player;
 
-	
+public:
+	/**칼을 blocking 상태로 전환*/
+	void EnableBlock();
+	/**칼을 idle 상태로 전환*/
+	void DisableBlock();
+	/**현재 block상태를 return*/
+	bool GetIsBlock();
+	/**Parry를 시도*/
+	void TryParry();
+	UFUNCTION()
+	void PlayParry();
+
+private:
+	bool IsBlock;
+public:
+	int32 IsParry;
+	int32 EnemyAttackSectionIndex;
+public:
+	bool CanParry;
+
 };

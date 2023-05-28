@@ -27,10 +27,19 @@ public:
 		virtual void Attack() PURE_VIRTUAL(AWeapon::Attack, );
 	UFUNCTION() 
 		virtual void InitializeWeapon();
+	bool IsUsed;
 protected:
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Mesh")
 	class UStaticMeshComponent* Mesh;
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Owner")
 	class AAssassinCharacter* Character;
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Finisher")
+	class UFinisherComponent* FinisherComp;
 	float WeaponDamage;
+	bool IsAttacking;
+public:
+	void Detach();
+	bool GetIsAttacking();
+	UFinisherComponent* GetFinisherComponent();
+
 };

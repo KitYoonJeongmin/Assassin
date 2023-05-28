@@ -65,12 +65,12 @@ ST_IK_TraceInfo UFootIKComponent::IKFootTrace(float fTraceDistance, FName sSocke
     TArray<AActor*> pIgnore;
     pIgnore.Add(GetOwner());
 
-    bool bDebug = true;
+    bool bDebug = false;
     EDrawDebugTrace::Type eDebug = EDrawDebugTrace::None;
     if (bDebug == true) eDebug = EDrawDebugTrace::ForOneFrame;
 
     bool bResult = UKismetSystemLibrary::LineTraceSingle(GetWorld(), pLine_Start, pLine_End,
-        UEngineTypes::ConvertToTraceType(ECC_Visibility), true, pIgnore, eDebug, pHitResult, true);
+        UEngineTypes::ConvertToTraceType(ECC_GameTraceChannel4), true, pIgnore, eDebug, pHitResult, true);
 
     //! Set ImpactNormal and Offset from HitResult
     pTraceInfo.pImpactLocation = pHitResult.ImpactNormal;
