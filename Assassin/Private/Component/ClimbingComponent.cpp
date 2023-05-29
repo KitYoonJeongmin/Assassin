@@ -86,7 +86,14 @@ void UClimbingComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	{
 		HandIK();
 	}
-	
+	/*if(ClimbingState.CanMoveOnLedge)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 1.5f, FColor::Red, TEXT("CanMoveOnLedge"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 1.5f, FColor::Blue, TEXT("CanNotMoveOnLedge"));
+	}*/
 }
 
 void UClimbingComponent::GetWallLocation(FVector StartPoint)
@@ -562,7 +569,6 @@ void UClimbingComponent::DropToHang()
 
 void UClimbingComponent::FindLedge(float Right, float Up)
 {
-	
 	FVector CenterLoc = Character->GetActorLocation();
 	if (Right != 0)
 	{
@@ -681,7 +687,7 @@ void UClimbingComponent::FindLedge(float Right, float Up)
 	//성공적으로 난간을 찾아 움직일 상태라면
 	if (ClimbingState.CanMoveOnLedge)
 	{
-		Character->GetController()->DisableInput(Cast<APlayerController>(Character->GetController()));
+		//Character->GetController()->DisableInput(Cast<APlayerController>(Character->GetController()));
 		Character->ACAnim->MoveToLedge(ClimbingState.CanMoveOnLedge);
 		/*FTimerDelegate TimerDelegate;
 		TimerDelegate.BindLambda([&]

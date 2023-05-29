@@ -55,7 +55,6 @@ AAssassinCharacter::AAssassinCharacter()
 
 	// Configure character movement
 	GetCharacterMovement()->bOrientRotationToMovement = true; // Character moves in the direction of input...	
-	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f); // ...at this rotation rate
 
 	WalkSpeed = 250.f;
 	RunSpeed = 600.f;
@@ -333,6 +332,7 @@ void AAssassinCharacter::JumpStart()
 		}
 		else if(!ClimbingComp->ClimbingState.CanMoveOnLedge)
 		{
+			//GEngine->AddOnScreenDebugMessage(-1, 100.f, FColor::Red, TEXT("MoveTo!!"));
 			if (MovementVector.Y == 0)
 			{
 				if (MovementVector.X > 0 && ClimbingComp->LedgeMoveRight()) break;	//오른쪽 이동 가능하면 점프못함

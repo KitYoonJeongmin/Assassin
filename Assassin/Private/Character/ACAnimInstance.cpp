@@ -21,6 +21,7 @@
 #include "Kismet/KismetMathLibrary.h"
 
 #include "Containers/Map.h"
+#include "Math/UnrealMath.h"
 
 
 UACAnimInstance::UACAnimInstance()
@@ -28,6 +29,8 @@ UACAnimInstance::UACAnimInstance()
 	WeaponState = EWeaponState::E_Daggle;
 	IsBlock = false;
 
+	//Walk
+	RightDirection = 0.f;
 	//HeadTracking
 	HeadTrackingRadius = 300.f;
 	CanHeadTracking = true;
@@ -67,6 +70,8 @@ void UACAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	//Speed
 	CurrentPawnSpeed = Character->GetVelocity().Size();
 	CurrentDirection = CalculateDirection(Character->GetVelocity(), Character->GetActorRotation());
+	SetControllerInputDirection();
+	
 
 	//Jump
 	IsFalling = Character->GetMovementComponent()->IsFalling();
@@ -227,6 +232,37 @@ void UACAnimInstance::PlayAssassinedMontage(UAnimMontage* FinisherMon)
 	Montage_Play(AssassinationMap[FinisherMon], 1.f);
 }
 
+UAnimMontage* UACAnimInstance::PlayAssassinForwardMontage()
+{
+	int32 MonIndex = FMath::RandRange(0, AssassinationForwardMap.Num() - 1);
+	class UAnimMontage* AssassinMon = AssassinationForwardMap.begin().Key();
+	for (auto AssassinMonPair : AssassinationForwardMap)
+	{
+		AssassinMon = AssassinMonPair.Key;
+		MonIndex--;
+		if (MonIndex < 0)
+		{
+			break;
+		}
+	}
+	if(AssassinMon)
+	{
+		Montage_Play(AssassinMon, 1.f);
+	}
+	return AssassinMon;
+}
+
+void UACAnimInstance::PlayAssassinedForwardMontage(UAnimMontage* FinisherMon)
+{
+	Montage_Play(AssassinationForwardMap[FinisherMon], 1.f);
+}
+
+void UACAnimInstance::PlayUnderAssassinationMontage(AAssassinCharacter* TargetCharacter)
+{
+	Montage_Play(UnderAssassinMon, 1.f);
+	TargetCharacter->ACAnim->Montage_Play(UnderAssassinedMon,1.f);
+}
+
 float UACAnimInstance::GetDistancebySwordFinish(UAnimMontage* FinisherMon)
 {
 	return SwordFinisherDistanceMap.FindRef(FinisherMon);
@@ -284,9 +320,17 @@ void UACAnimInstance::AnimNotify_MoveToLedge()
 
 void UACAnimInstance::AnimNotify_MoveToLedgeEnd()
 {
+	
 	MoveToLedge(false);
-	Character->ClimbingComp->ClimbingState.CanMoveOnLedge = false;
-	Character->GetController()->EnableInput(Cast<APlayerController>(Character->GetController()));
+	//Character->ClimbingComp->ClimbingState.CanMoveOnLedge = false;
+	FTimerHandle GravityTimerHandle;
+	float  GravityTime = 0.2f;
+
+	GetWorld()->GetTimerManager().SetTimer(GravityTimerHandle, FTimerDelegate::CreateLambda([&]()
+	{
+		Character->ClimbingComp->ClimbingState.CanMoveOnLedge = false;
+	}), GravityTime, false);	// 반복하려면 false를 true로 변경
+	//Character->GetController()->EnableInput(Cast<APlayerController>(Character->GetController()));
 	
 }
 
@@ -390,5 +434,34 @@ void UACAnimInstance::TrackHead()
 		}
 		HeadTrackingTargetLoc = FMath::Lerp(HeadTrackingTarget, HeadTrackingTargetLoc, 0.95f);
 		//DrawDebugSphere(GetWorld(), HeadTrackingTargetLoc, 30.f, 10, FColor(181, 0, 0));
+	}
+}
+
+void UACAnimInstance::SetControllerInputDirection()
+{
+	if(WeaponState != EWeaponState::E_Daggle) return;
+	APlayerCharacter* Player = Cast<APlayerCharacter>(Character);
+	if(Player == nullptr) return;
+	ForwardInput = FMath::Abs(Player->MovementVector.Y)+ FMath::Abs(Player->MovementVector.X);
+	FVector CharForwardVec = Player->GetActorForwardVector();
+	CharForwardVec.Z = 0.f;
+	CharForwardVec.Normalize();
+	FVector ControllerVec = Player->GetInputForwardDirection()*Player->MovementVector.Y + Player->GetInputRightDirection()*Player->MovementVector.X;
+	ControllerVec.Z = 0.f;
+	ControllerVec.Normalize();
+	float DotForward = FVector::DotProduct(CharForwardVec,ControllerVec);	//전방 내적, 같은 방향인지 확인
+
+	if (DotForward != 1.f)
+	{
+		FVector CharRightVec = Player->GetActorRightVector();
+		RightDirection = FVector::DotProduct(CharRightVec,ControllerVec);//오른쪽 내적 1: 오른, -1: 왼
+		if(DotForward<0)
+		{
+			RightDirection+=0.5;
+		}
+	}
+	else
+	{
+		RightDirection = 0.f; 
 	}
 }

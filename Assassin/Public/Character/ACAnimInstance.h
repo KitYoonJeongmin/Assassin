@@ -81,6 +81,10 @@ public:
 	/**Assassination Montage*/
 	class UAnimMontage* PlayAssassinMontage();
 	void PlayAssassinedMontage(UAnimMontage* FinisherMon);
+	class UAnimMontage* PlayAssassinForwardMontage();
+	void PlayAssassinedForwardMontage(UAnimMontage* FinisherMon);
+	void PlayUnderAssassinationMontage(AAssassinCharacter* TargetCharacter);
+	
 
 private:
 	//Priority
@@ -117,7 +121,12 @@ private:
 	//Assassination
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Assassination, Meta = (AllowPrivateAccess = true))
 	TMap<UAnimMontage*, UAnimMontage*> AssassinationMap;
-
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Assassination, Meta = (AllowPrivateAccess = true))
+	TMap<UAnimMontage*, UAnimMontage*> AssassinationForwardMap;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Assassination, Meta = (AllowPrivateAccess = true))
+	UAnimMontage* UnderAssassinMon;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Assassination, Meta = (AllowPrivateAccess = true))
+	UAnimMontage* UnderAssassinedMon;
 	//FootIK
 private:
 	
@@ -208,4 +217,11 @@ private:
 	float HeadTrackingRadius;
 	void TrackHead();
 
+	//Locomotion
+private:
+	void SetControllerInputDirection();
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = HeadTracking, Meta = (AllowPrivateAccess = true))
+	float RightDirection;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = HeadTracking, Meta = (AllowPrivateAccess = true))
+	float ForwardInput;
 };

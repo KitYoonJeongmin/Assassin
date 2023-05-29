@@ -25,6 +25,8 @@ APlayerCharacter::APlayerCharacter()
     FollowCameraChildActor->SetupAttachment(FollowCamera);
     SequenceCameraChildActor = CreateDefaultSubobject<UChildActorComponent>(TEXT("SequenceCameraChildActor"));
     SequenceCameraChildActor->SetupAttachment(SequenceCamera);
+
+    
     //Health Point
     HealthPoint = 1000.f;
 
@@ -33,7 +35,8 @@ void APlayerCharacter::BeginPlay()
 {
     // Call the base class  
     Super::BeginPlay();
-
+    //Movement
+    GetCharacterMovement()->RotationRate = FRotator(0.f, 270.f, 0.f);
     Weapon.DaggleWeapon = GetWorld()->SpawnActor<ADaggle>(FVector::ZeroVector, FRotator::ZeroRotator);
     AttachWeaponTo(Weapon.DaggleWeapon, FName("DaggleSocket"), false);
     Weapon.DaggleWeapon->InitializeWeapon();
@@ -44,12 +47,15 @@ void APlayerCharacter::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
+    /* Direction Debugger
     FVector RightDirectionX = GetInputRightDirection();
     FVector ForwardDirectionY = GetInputForwardDirection();
     FVector StartDebug = GetActorLocation() - GetActorUpVector() * 44.f;
     FVector EndDebug = StartDebug + RightDirectionX * MovementVector.X * 250.f + ForwardDirectionY * MovementVector.Y * 250.f;
-    //DrawDebugDirectionalArrow(GetWorld(), StartDebug, EndDebug, 500.f, FColor::Magenta, false, -1.f, 0U, 2.5f);
-    
+    FVector EndDebug2 = StartDebug + GetActorForwardVector()*250.f;
+    DrawDebugDirectionalArrow(GetWorld(), StartDebug, EndDebug, 500.f, FColor::Magenta, false, -1.f, 0U, 2.5f);
+    DrawDebugDirectionalArrow(GetWorld(), StartDebug, EndDebug2, 500.f, FColor::Cyan, false, -1.f, 0U, 2.5f);
+    */
 }
 
 FVector APlayerCharacter::GetInputRightDirection()
