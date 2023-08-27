@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
 #include "Animation/AnimInstance.h"
 #include "Component/ClimbingComponent.h"
 #include "Component/ClimbingMovement.h"
@@ -24,6 +25,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnNextAttackCheckDelegate);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAttackEnableHitCheckDelegate);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAttackDisableHitCheckDelegate);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnFinishedDelegate);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSpawnDaggerDelegate);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSpawnSmokeBombDelegate);
+
 
 UCLASS()
 class ASSASSIN_API UACAnimInstance : public UAnimInstance, public IClimbingMovement
@@ -52,6 +56,8 @@ public:
 	FOnAttackEnableHitCheckDelegate OnEnableAttackHitCheck;
 	FOnAttackDisableHitCheckDelegate OnDisableAttackHitCheck;
 	FOnFinishedDelegate OnFinished;
+	FOnSpawnDaggerDelegate OnSpawnDagger;
+	FOnSpawnSmokeBombDelegate OnSpawnSmokeBomb;
 
 	//Montage
 public:
@@ -84,7 +90,13 @@ public:
 	class UAnimMontage* PlayAssassinForwardMontage();
 	void PlayAssassinedForwardMontage(UAnimMontage* FinisherMon);
 	void PlayUnderAssassinationMontage(AAssassinCharacter* TargetCharacter);
-	
+
+	/**RangeAttackMontage*/
+	void PlayThrowDaggerMontage();
+	void PlayThrowSmokeBombMontage();
+
+	/**BossAttack*/
+	void PlayLaunchSkillMontage();
 
 private:
 	//Priority
@@ -127,6 +139,22 @@ private:
 	UAnimMontage* UnderAssassinMon;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Assassination, Meta = (AllowPrivateAccess = true))
 	UAnimMontage* UnderAssassinedMon;
+
+
+	//Looking Around
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LookingAround, Meta = (AllowPrivateAccess = true))
+	UAnimMontage* LookingAroundMon;
+
+	//Throw Weaapon
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RangeAttack, Meta = (AllowPrivateAccess = true))
+	UAnimMontage* ThrowDagger;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RangeAttack, Meta = (AllowPrivateAccess = true))
+	UAnimMontage* ThrowSmokeBomb;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Boss, Meta = (AllowPrivateAccess = true))
+	UAnimMontage* LaunchSkill;
+
+	
 	//FootIK
 private:
 	
@@ -224,4 +252,24 @@ private:
 	float RightDirection;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = HeadTracking, Meta = (AllowPrivateAccess = true))
 	float ForwardInput;
+
+	//Cover
+public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Cover)
+	bool IsCover;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Cover)
+	float CoverMoveInput;
+	
+private:
+	//Stealth
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Stealth, Meta = (AllowPrivateAccess = true))
+	bool IsStealth;
+
+private:
+	UFUNCTION()
+	void AnimNotify_SpawnDagger();
+	UFUNCTION()
+	void AnimNotify_SpawnSmokeBomb();
+
+
 };

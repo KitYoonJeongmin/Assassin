@@ -14,11 +14,14 @@ enum class EMovementState : uint8
 	E_Walking = 0   UMETA(DisplayName = "Walking"),	
 	E_OnLedge		UMETA(DisplayName = "OnLedge"),
 	E_Hanging		UMETA(DisplayName = "Hanging"),
-	E_Jumping		UMETA(DisplayName = "Jumping"),
+	E_Covering		UMETA(DisplayName = "Covering"),
+	E_Stealthing	UMETA(DisplayName = "Stealthing"),
 	E_Falling		UMETA(DisplayName = "Falling"),
-	E_Flying		UMETA(DisplayName = "Flying"), 
-	E_Mantelling	UMETA(DisplayName = "Mantelling"),
-	E_Vault			UMETA(DisplayName = "Vault"),
+	//E_Jumping		UMETA(DisplayName = "Jumping"),
+	
+	//E_Flying		UMETA(DisplayName = "Flying"), 
+	//E_Mantelling	UMETA(DisplayName = "Mantelling"),
+	//E_Vault			UMETA(DisplayName = "Vault"),
 
 };
 

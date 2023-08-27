@@ -27,12 +27,12 @@ void AACPlayerController::OnPossess(APawn* aPawn)
 void AACPlayerController::OnEnableInput()
 {
 	
-	//GetPawn()->EnableInput(this);
+	GetPawn()->EnableInput(this);
 
 }
 
 void AACPlayerController::OnDisableInput()
 {
 
-	//GetPawn()->DisableInput(this);
+	GetPawn()->DisableInput(this);
 }

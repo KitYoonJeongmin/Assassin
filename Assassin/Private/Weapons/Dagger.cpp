@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "Weapons/Daggle.h"
+#include "Weapons/Dagger.h"
 
 #include "Character/AssassinCharacter.h"
 #include "Character/PlayerCharacter.h"
@@ -10,13 +10,15 @@
 
 #include "MotionWarpingComponent.h"
 #include "Camera/CameraComponent.h"
+#include "Component/CoverMovementComponent.h"
+#include "Component/OutlineComponent.h"
 #include "Components/CapsuleComponent.h"
 
 
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
 
-ADaggle::ADaggle()
+ADagger::ADagger()
 {
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> SM_WEAPON(TEXT("/Script/Engine.StaticMesh'/Game/MedievalArmour/CharacterParts/Meshes/StaticMeshes/SM_wp_sword_04.SM_wp_sword_04'"));
 	if (SM_WEAPON.Succeeded())
@@ -26,20 +28,21 @@ ADaggle::ADaggle()
 	CanAttackForward = false;
 }
 
-void ADaggle::InitializeWeapon()
+void ADagger::InitializeWeapon(AAssassinCharacter* OwnerCharacter)
 {
-	Super::InitializeWeapon();
-	Character->ACAnim->OnMontageEnded.AddDynamic(this,&ADaggle::OnAttackMontageEnded);
+	Super::InitializeWeapon(OwnerCharacter);
+	Character->ACAnim->OnMontageEnded.AddDynamic(this,&ADagger::OnAttackMontageEnded);
 }
 
-void ADaggle::Tick(float DeltaSeconds)
+void ADagger::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 	if(!IsUsed)
 	{
 		if(TargetCharacter)
 		{
-			TargetCharacter->SetCustomDepth(false);
+			//TargetCharacter->SetCustomDepth(false);
+			TargetCharacter->OutlineComponent->DisableOverlay();
 			TargetCharacter = nullptr;
 		}
 		return;
@@ -54,12 +57,10 @@ void ADaggle::Tick(float DeltaSeconds)
 	{
 		FindUnderTargetCharacter();
 	}
-	//FindTargetCharacter();
-	//FindUnderTargetCharacter();
 	
 }
 
-void ADaggle::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+void ADagger::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
 	if(Montage->GetName().Contains("Stealth"))
 	{
@@ -69,7 +70,7 @@ void ADaggle::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 
 
 
-void ADaggle::Attack()
+void ADagger::Attack()
 {
 	if(TargetCharacter)
 	{
@@ -86,21 +87,22 @@ void ADaggle::Attack()
 	
 }
 
-void ADaggle::ForwardAttack()
+void ADagger::ForwardAttack()
 {
 	FVector TargetForward = TargetCharacter->GetActorForwardVector();
-	FVector CharacterForward = Character->GetActorForwardVector();
-	//bool IsForward = (>0);
+	FVector CharacterForward = TargetCharacter->GetActorLocation()-Character->GetActorLocation();
+	CharacterForward.Normalize();
 
 	
 	if(FVector::DotProduct(TargetForward, CharacterForward)<0)
 	{
 		FRotator TargetCharacterRot = Character->GetActorRotation();
 		TargetCharacterRot.Yaw +=180.f;
-		TargetCharacter->SetActorRotation(TargetCharacterRot);
+		//TargetCharacter->SetActorRotation(TargetCharacterRot);
 		
-		FVector TargetLoc = TargetCharacter->GetActorLocation() + TargetCharacter->GetActorForwardVector()*120.f;
+		FVector TargetLoc = TargetCharacter->GetActorLocation() + TargetCharacter->GetActorForwardVector()*115.f;
 		FRotator TargetRot = TargetCharacter->GetActorRotation();
+		TargetRot.Yaw+=180.f;
 		Character->MotionWarpingComp->AddOrUpdateWarpTargetFromLocationAndRotation(TEXT("AssassinTarget"), TargetLoc, TargetRot);
 		Character->GetCapsuleComponent()->SetCollisionProfileName("CharacterMesh");
 		TargetCharacter->GetCapsuleComponent()->SetCollisionProfileName("CharacterMesh");
@@ -110,9 +112,9 @@ void ADaggle::ForwardAttack()
 	}
 	else
 	{
-		TargetCharacter->SetActorRotation(Character->GetActorRotation());
+		//TargetCharacter->SetActorRotation(Character->GetActorRotation());
 		
-		FVector TargetLoc = TargetCharacter->GetActorLocation() - TargetCharacter->GetActorForwardVector()*137.f;
+		FVector TargetLoc = TargetCharacter->GetActorLocation() - TargetCharacter->GetActorForwardVector()*125.f;//+ TargetCharacter->GetActorRightVector()*10.f;
 		FRotator TargetRot = TargetCharacter->GetActorRotation();
 		Character->MotionWarpingComp->AddOrUpdateWarpTargetFromLocationAndRotation(TEXT("AssassinTarget"), TargetLoc, TargetRot);
 		Character->GetCapsuleComponent()->SetCollisionProfileName("CharacterMesh");
@@ -124,7 +126,7 @@ void ADaggle::ForwardAttack()
 	
 }
 
-void ADaggle::UnderAttack()
+void ADagger::UnderAttack()
 {
 	TargetCharacter->SetActorRotation(Character->GetActorRotation());
 		
@@ -137,7 +139,7 @@ void ADaggle::UnderAttack()
 	
 }
 
-void ADaggle::FindTargetCharacter()
+void ADagger::FindTargetCharacter()
 {
 	//전방에 있는 적을 찾음
 	if(Character == nullptr) return;
@@ -171,7 +173,7 @@ void ADaggle::FindTargetCharacter()
 				TArray<AActor*> ActorsToIgnore2;
 				ActorsToIgnore2.Add(Character);
 				ActorsToIgnore2.Add(Target);
-				if(!UKismetSystemLibrary::LineTraceSingle(GetWorld(),Character->GetActorLocation(),Target->GetActorLocation(),UEngineTypes::ConvertToTraceType(ECC_Visibility),false,ActorsToIgnore2, EDrawDebugTrace::None, HitResult2, true))
+				if(!UKismetSystemLibrary::LineTraceSingle(GetWorld(),Character->GetActorLocation(),Target->GetActorLocation(),UEngineTypes::ConvertToTraceType(ECC_WorldStatic),false,ActorsToIgnore2, EDrawDebugTrace::None, HitResult2, true))
 				{
 					//가장 가까운 적 구하기
 					if(NewTarget)
@@ -196,17 +198,19 @@ void ADaggle::FindTargetCharacter()
 	{
 		if(NewTarget)
 		{
-			NewTarget->SetCustomDepth(true);
+			//NewTarget->SetCustomDepth(true);
+			NewTarget->OutlineComponent->EnableOverlay();
 		}
 		if(TargetCharacter)
 		{
-			TargetCharacter->SetCustomDepth(false);
+			//TargetCharacter->SetCustomDepth(false);
+			TargetCharacter->OutlineComponent->DisableOverlay();
 		}
 	}
 	TargetCharacter = NewTarget;
 }
 
-void ADaggle::FindUnderTargetCharacter()
+void ADagger::FindUnderTargetCharacter()
 {
 	if(Character == nullptr) return;
 	
@@ -240,7 +244,7 @@ void ADaggle::FindUnderTargetCharacter()
 				TArray<AActor*> ActorsToIgnore2;
 				ActorsToIgnore2.Add(Character);
 				ActorsToIgnore2.Add(Target);
-				if(!UKismetSystemLibrary::LineTraceSingle(GetWorld(),Character->GetActorLocation(),Target->GetActorLocation(),UEngineTypes::ConvertToTraceType(ECC_Visibility),false,ActorsToIgnore2, EDrawDebugTrace::None, HitResult2, true))
+				if(!UKismetSystemLibrary::LineTraceSingle(GetWorld(),Character->GetActorLocation(),Target->GetActorLocation(),UEngineTypes::ConvertToTraceType(ECC_WorldStatic),false,ActorsToIgnore2, EDrawDebugTrace::None, HitResult2, true))
 				{
 					//가장 가까운 적 구하기
 					if(NewTarget)
@@ -264,17 +268,19 @@ void ADaggle::FindUnderTargetCharacter()
 	{
 		if(NewTarget)
 		{
-			NewTarget->SetCustomDepth(true);
+			//NewTarget->SetCustomDepth(true);
+			NewTarget->OutlineComponent->EnableOverlay();
 		}
 		if(TargetCharacter)
 		{
-			TargetCharacter->SetCustomDepth(false);
+			//TargetCharacter->SetCustomDepth(false);
+			TargetCharacter->OutlineComponent->DisableOverlay();
 		}
 	}
 	TargetCharacter = NewTarget;
 }
 
-bool ADaggle::FindCanAttackForward()
+bool ADagger::FindCanAttackForward()
 {
 	float Radius = 40.f;
 	FRotator TraceForwardRot = Character->GetController()->GetDesiredRotation();

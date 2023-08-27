@@ -4,20 +4,20 @@
 
 #include "CoreMinimal.h"
 #include "Weapons/Weapon.h"
-#include "Daggle.generated.h"
+#include "Dagger.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class ASSASSIN_API ADaggle : public AWeapon
+class ASSASSIN_API ADagger : public AWeapon
 {
 	GENERATED_BODY()
 	
 
 public:
-	ADaggle();
-	virtual void InitializeWeapon() override;
+	ADagger();
+	virtual void InitializeWeapon(AAssassinCharacter* OwnerCharacter) override;
 	virtual void Tick(float DeltaSeconds) override;
 	UFUNCTION()/**암살 몽타주가 끝났을 때 실행*/
 	void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);

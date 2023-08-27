@@ -22,30 +22,37 @@ AEnemy::AEnemy()
 
 	//Health
 	HealthPoint = 100.f;
+
+	// DetectType
+	DetectEnemyTrace = UEngineTypes::ConvertToTraceType(ECC_EngineTraceChannel1);
 }
-void AEnemy::PostInitializeComponents()
-{
-	Super::PostInitializeComponents();
-	ACAnim->OnMontageEnded.AddDynamic(this, &AEnemy::OnAttackMontageEnded);
-}
+
 void AEnemy::BeginPlay()
 {
 	Super::BeginPlay();
-	if (Weapon.SwordWeapon != nullptr)
-	{
-		Weapon.SwordWeapon->SwordAttackType = UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel3);
-	}
+	//Character Weapons Spawn  Sword
+	Weapon.SwordWeapon = GetWorld()->SpawnActor<ASword>(FVector::ZeroVector, FRotator::ZeroRotator);
+	AttachWeaponTo(Weapon.SwordWeapon, FName("SwordSocket"), false);
+	Weapon.SwordWeapon->InitializeWeapon(this);
+	SetEnemySwordAttackCollisionChannel();
 }
-void AEnemy::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
-{
-	Super::OnAttackMontageEnded(Montage, bInterrupted);
-	
-}
+
 void AEnemy::Dead()
 {
 	Super::Dead();
-	if (Cast<AMeleeAIController>(GetController()) != nullptr)
+	if (Cast<AAIControllerBase>(GetController()) != nullptr)
 	{
-		Cast<AMeleeAIController>(GetController())->SetDead();
+		//UE_LOG(LogTemp, Warning, TEXT("--------death---------"));
+		Cast<AAIControllerBase>(GetController())->SetDead();
+	}
+}
+
+
+
+void AEnemy::SetEnemySwordAttackCollisionChannel()
+{
+	if (Weapon.SwordWeapon != nullptr)
+	{
+		Weapon.SwordWeapon->SwordAttackType = UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel3);
 	}
 }

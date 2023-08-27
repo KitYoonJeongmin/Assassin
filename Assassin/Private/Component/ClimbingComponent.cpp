@@ -49,7 +49,7 @@ void UClimbingComponent::BeginPlay()
 	Super::BeginPlay();
 
 	//Initializing Character Component
-	Character = Cast<AAssassinCharacter>(UGameplayStatics::GetPlayerPawn(this, 0));
+	Character = Cast<AAssassinCharacter>(GetOwner());
 	CharMoveComp = Cast<UCharacterMovementComponent>(Character->GetMovementComponent());
 	CharCapsuleComp = Character->GetCapsuleComponent();
 	CharMeshComp = Character->GetMesh();
@@ -205,7 +205,6 @@ void UClimbingComponent::MoveToLedge()
 {
 	float OverTime;
 	OverTime = UKismetMathLibrary::Vector_Distance(LedgeLocation, Character->GetActorLocation());
-	//ClimbingState.CanMoveOnLedge = false;
 	SetOnWall(OverTime);
 }
 
@@ -218,23 +217,29 @@ void UClimbingComponent::SetOnWall(float OverTime)
 	{
 	case EMovementState::E_Walking:
 		Character->UpdateMovementState(EMovementState::E_Hanging);
+		
 		break;
 	}
-	if (true)
+	FLatentActionInfo Info;
+	Info.CallbackTarget = this;
+	UKismetSystemLibrary::MoveComponentTo(
+		CharCapsuleComp,
+		LedgeLocation,
+		ClimbRotation,
+		false,
+		false,
+		(OverTime/600.f),
+		false,
+		EMoveComponentAction::Type::Move,
+		Info);
+
+	FTimerHandle WaitHandle;
+	GetWorld()->GetTimerManager().SetTimer(WaitHandle, FTimerDelegate::CreateLambda([&]()
 	{
-		FLatentActionInfo Info;
-		Info.CallbackTarget = this;
-		UKismetSystemLibrary::MoveComponentTo(
-			CharCapsuleComp,
-			LedgeLocation,
-			ClimbRotation,
-			false,
-			false,
-			(OverTime/800.f),
-			false,
-			EMoveComponentAction::Type::Move,
-			Info);
-	}
+
+		Character->ACAnim->Montage_Stop(0.2f);
+
+	}), (OverTime/600.f), false); //반복도 여기서 추가 변수를 선언해 설정가능
 }
 
 ////////MoveTo Side
@@ -439,7 +444,7 @@ void UClimbingComponent::MoveOnLedge(FVector T1ImpactPoint, FVector T2ImpactPoin
 
 void UClimbingComponent::ClimbUp()
 {
-	FVector StartPoint = ClimbUpTracer->GetComponentLocation() + 50.f*Character->GetActorForwardVector();
+	FVector StartPoint = ClimbUpTracer->GetComponentLocation() + 70.f*Character->GetActorForwardVector();
 	FHitResult HitResult;
 	TArray<AActor*> ActorsToIgnore;
 	ActorsToIgnore.Add(Character);

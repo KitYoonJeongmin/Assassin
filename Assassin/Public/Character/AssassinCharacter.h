@@ -7,6 +7,7 @@
 #include "InputActionValue.h"
 #include "Component/ClimbingComponent.h"
 #include "Component/ClimbingMovement.h"
+#include "Component/EagleVisionInterface.h"
 #include "AssassinCharacter.generated.h"
 
 
@@ -19,7 +20,7 @@ public:
 	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
 	class ASword* SwordWeapon;
 	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
-	class ADaggle* DaggleWeapon;
+	class ADagger* DaggleWeapon;
 
 };
 
@@ -27,7 +28,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStunStartDelegate);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStunEndDelegate);
 
 UCLASS(config=Game)
-class AAssassinCharacter : public ACharacter, public IClimbingMovement
+class AAssassinCharacter : public ACharacter, public IClimbingMovement, public IEagleVisionInterface
 {
 	GENERATED_BODY()
 public:
@@ -79,6 +80,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputAction* ParryAction;
 
+
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
 	FVector2D MovementVector;
@@ -98,8 +100,8 @@ public:
 protected:
 
 	/** Called for movement input */
-	void Move(const FInputActionValue& Value);
-	void MoveEnd(const FInputActionValue& Value);
+	virtual void Move(const FInputActionValue& Value);
+	virtual void MoveEnd(const FInputActionValue& Value);
 
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
@@ -123,6 +125,7 @@ public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+
 public:
 	UFUNCTION()
 	void RunStart();
@@ -135,14 +138,14 @@ public:
 	void SetWalkSpeed(float TargetSpeed);
 
 
-//Animation
-public:
+	//Animation
+	public:
 	UACAnimInstance* ACAnim;
 	UFUNCTION()
 	virtual void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
-//Climbing
-public:
+	//Climbing
+	public:
 	virtual void UpdateMovementState(EMovementState CurrentState) override;
 	EMovementState CurrnetMovementState;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Climbing)
@@ -150,20 +153,20 @@ public:
 private:
 	bool isWalk = false;
 
-//FootIK
-public:
+	//FootIK
+	public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = IK)
 	class UFootIKComponent* FootIKComp;
 	
-//Attack
-public:
-	void Attack();
+	//Attack
+	public:
+	virtual void Attack();
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
 	FOnStunStartDelegate OnStunStart;
 	FOnStunEndDelegate OnStunEnd;
 
-//Block
-public:
+	//Block
+	public:
 	void BlockStart();
 	void BlockEnd();
 private:
@@ -171,13 +174,13 @@ private:
 	class UNiagaraSystem* SparkN;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UNiagaraSystem* BloodN;
-//Parry
+	//Parry
 
-public:
+	public:
 	void TryParry();
 
-//Weapon
-public:
+	//Weapon
+	public:
 	void EquipWeapon();
 	FWeapons Weapon;
 	/**무기를 원하는 소켓에 붙이는 함수*/
@@ -187,8 +190,8 @@ private:
 	/**현재 손에 있는 무기*/
 	class AWeapon* CurrentWeapon;
 
-//Dead
-public:
+	//Dead
+	public:
 	bool GetIsDead() { return IsDead; }
 	/**죽음 상태로 변경*/
 	virtual void Dead();
@@ -199,12 +202,40 @@ protected:
 public:
 	float GetHealthPoint();
 
-//Assassination
-public:
+	//Assassination
+	public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = MotionWarping)
 	class UMotionWarpingComponent* MotionWarpingComp;
 
-//Custom Depth
-public:
+	//Custom Depth
+	public:
 	void SetCustomDepth(bool IsEnable);
-};
 
+	//Outline
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Outline)
+	class UOutlineComponent* OutlineComponent;
+protected:
+	//EagleVision
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = EagleVision, meta = (AllowPrivateAccess = "true"))
+	class UEagleVisionComponent* EagleVisionComponent;
+	virtual class UEagleVisionComponent* GetEagleVisionComponent() override;
+
+
+//Detection
+public:
+	void EnableDetectionWidget(bool isEnable);
+	void UpdateDetectionWidget(float DetectLevel);
+protected:
+	UPROPERTY(VisibleAnyWhere, Category = UI)
+	class UWidgetComponent* DetectionWidget;
+
+	//Detect Enemy
+public:
+
+	/**주변에 있는 적들을 찾는 함수*/
+	TArray<class AAssassinCharacter*> DetectNearByEnemy(float SearchRadius);
+	/**가장 가까운 적을 찾는 함수*/
+	class AAssassinCharacter* FindNearestEnemy(TArray<class AAssassinCharacter*> EnemyArr);
+protected:
+	ETraceTypeQuery DetectEnemyTrace;
+};

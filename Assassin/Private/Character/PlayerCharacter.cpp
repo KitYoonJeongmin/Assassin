@@ -2,19 +2,59 @@
 
 
 #include "Character/PlayerCharacter.h"
+
+#include "EnhancedInputComponent.h"
+#include "HPBarWidget.h"
+#include "HUDWidget.h"
 #include "Character/Enemy/Enemy.h"
 #include "Character/ACAnimInstance.h"
 
 #include "Weapons/Weapon.h"
 #include "Weapons/Sword.h"
-#include "Weapons/Daggle.h"
+#include "Weapons/Dagger.h"
 
 #include "Camera/CameraComponent.h"
+#include "Component/BushHideComponent.h"
+#include "Component/CoverMovementComponent.h"
+#include "Component/EagleVisionComponent.h"
+#include "Component/RangeComponent.h"
+#include "Component/WhistleComponent.h"
 #include "Components/ChildActorComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/SpringArmComponent.h"
+#include "GameFrameworks/AssassinGameMode.h"
+#include "Kismet/GameplayStatics.h"
+#include "Weapons/PlayerSword.h"
 
+
+void APlayerCharacter::Move(const FInputActionValue& Value)
+{
+    switch (CurrnetMovementState)
+    {
+    case EMovementState::E_Covering:
+        CoverMovementComponent->MoveInput(Value.Get<FVector2D>());
+        break;
+    case EMovementState::E_Stealthing:
+        Super::Move(Value);
+        SetWalkSpeed(100.f);
+        break;
+    default:
+        SetWalkSpeed(300.f);
+        Super::Move(Value);
+        break;
+    }
+}
+
+void APlayerCharacter::MoveEnd(const FInputActionValue& Value)
+{
+    Super::MoveEnd(Value);
+    
+    FVector2d ZeroVec;
+    ZeroVec.Zero();
+    CoverMovementComponent->MoveInput(ZeroVec);
+}
 
 APlayerCharacter::APlayerCharacter()
 {
@@ -26,10 +66,30 @@ APlayerCharacter::APlayerCharacter()
     SequenceCameraChildActor = CreateDefaultSubobject<UChildActorComponent>(TEXT("SequenceCameraChildActor"));
     SequenceCameraChildActor->SetupAttachment(SequenceCamera);
 
+    CoverMovementComponent = CreateDefaultSubobject<UCoverMovementComponent>(TEXT("CoverMovementComponent"));
+    
     
     //Health Point
     HealthPoint = 1000.f;
 
+
+    //BushHide
+    BushHideComp = CreateDefaultSubobject<UBushHideComponent>(TEXT("BushHideComponent"));
+
+    //WhistleComponent
+    WhistleComponent = CreateDefaultSubobject<UWhistleComponent>(TEXT("WhistleComponent"));
+
+    //Projectile
+    SpringArmLoc = FVector(0.f,0.f,0.f);
+
+    //Range
+    RangeComponent = CreateDefaultSubobject<URangeComponent>(TEXT("RangeComponent"));
+
+    // DetectType
+    DetectEnemyTrace = UEngineTypes::ConvertToTraceType(ECC_Pawn);
+
+
+    CurrentPlayerWeaponState = EPlayerWeaponState::E_Melee;
 }
 void APlayerCharacter::BeginPlay()
 {
@@ -37,25 +97,48 @@ void APlayerCharacter::BeginPlay()
     Super::BeginPlay();
     //Movement
     GetCharacterMovement()->RotationRate = FRotator(0.f, 270.f, 0.f);
-    Weapon.DaggleWeapon = GetWorld()->SpawnActor<ADaggle>(FVector::ZeroVector, FRotator::ZeroRotator);
+
+    //Character Weapons Spawn  Sword
+    Weapon.SwordWeapon = GetWorld()->SpawnActor<APlayerSword>(FVector::ZeroVector, FRotator::ZeroRotator);
+    AttachWeaponTo(Weapon.SwordWeapon, FName("SwordSocket"), false);
+    Weapon.SwordWeapon->InitializeWeapon(this);
+    
+    Weapon.DaggleWeapon = GetWorld()->SpawnActor<ADagger>(FVector::ZeroVector, FRotator::ZeroRotator);
     AttachWeaponTo(Weapon.DaggleWeapon, FName("DaggleSocket"), false);
-    Weapon.DaggleWeapon->InitializeWeapon();
+    Weapon.DaggleWeapon->InitializeWeapon(this);
     AttachWeaponTo(Weapon.DaggleWeapon, FName("DaggleHandSocket"), true);
+
+    
 }
 
 void APlayerCharacter::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
+    //CameraBoom->TargetOffset = FMath::FInterpTo(CameraBoom->TargetOffset, SpringArmLoc, DeltaTime,10.f);    //SpringArmLoc로 spring arm이 이동(나중에 SpringArmLoc 설정하는거 구현할것)
+    
+}
 
-    /* Direction Debugger
-    FVector RightDirectionX = GetInputRightDirection();
-    FVector ForwardDirectionY = GetInputForwardDirection();
-    FVector StartDebug = GetActorLocation() - GetActorUpVector() * 44.f;
-    FVector EndDebug = StartDebug + RightDirectionX * MovementVector.X * 250.f + ForwardDirectionY * MovementVector.Y * 250.f;
-    FVector EndDebug2 = StartDebug + GetActorForwardVector()*250.f;
-    DrawDebugDirectionalArrow(GetWorld(), StartDebug, EndDebug, 500.f, FColor::Magenta, false, -1.f, 0U, 2.5f);
-    DrawDebugDirectionalArrow(GetWorld(), StartDebug, EndDebug2, 500.f, FColor::Cyan, false, -1.f, 0U, 2.5f);
-    */
+void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+    Super::SetupPlayerInputComponent(PlayerInputComponent);
+    UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent);
+    if (EnhancedInputComponent != nullptr)
+    {
+        //Cover
+        EnhancedInputComponent->BindAction(CoverAction, ETriggerEvent::Started, CoverMovementComponent , &UCoverMovementComponent::ToggleCoverMovement);
+        //EagleVision
+        EnhancedInputComponent->BindAction(EagleVisionAction, ETriggerEvent::Started, EagleVisionComponent , &UEagleVisionComponent::ExecuteEagleVision);
+        //Whistle
+        EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, WhistleComponent , &UWhistleComponent::ExecuteWhistle);
+        //Zoom
+        EnhancedInputComponent->BindAction(ZoomAction, ETriggerEvent::Started, RangeComponent , &URangeComponent::ZoomIn);
+        EnhancedInputComponent->BindAction(ZoomAction, ETriggerEvent::Completed, RangeComponent , &URangeComponent::ZoomOut);
+        //Shoot
+        EnhancedInputComponent->BindAction(ShootAction, ETriggerEvent::Started, RangeComponent , &URangeComponent::Shoot);
+        //Projectile
+        EnhancedInputComponent->BindAction(ChangeProjectile, ETriggerEvent::Started, RangeComponent , &URangeComponent::ChangeWeapon);
+    }
+    
 }
 
 FVector APlayerCharacter::GetInputRightDirection()
@@ -74,33 +157,10 @@ FVector APlayerCharacter::GetInputForwardDirection()
     return ForwardDirectionY;
 }
 
-TArray<AEnemy*> APlayerCharacter::DetectNearByEnemy(float SearchRadius)
-{
-    TArray<AEnemy*> NearbyEnemies;
-    FVector CharacterLocation = GetActorLocation();
-    TArray<AActor*> ActorsToIgnore;
-    ActorsToIgnore.Add(this);
-    TArray<FHitResult> HitResults;
-    UKismetSystemLibrary::SphereTraceMulti(GetWorld(), CharacterLocation, CharacterLocation, SearchRadius, UEngineTypes::ConvertToTraceType(ECC_Pawn), false, ActorsToIgnore, EDrawDebugTrace::None, HitResults, true);
-    
-    for (const FHitResult& HitResult : HitResults)
-    {
-        AEnemy* Enemy = Cast<AEnemy>(HitResult.GetActor());
-        if (Enemy != nullptr && !Enemy->GetIsDead())
-        {
-            // 주변에 적이 검색되었으므로 처리
-            NearbyEnemies.AddUnique(Enemy);
-            
-        }
-    }
-
-    return NearbyEnemies;
-}
-
 TArray<class AEnemy*> APlayerCharacter::DetectNearByEnemyInViewAngle(float SearchRadius, float FOVAngle)
 {
     TArray<class AEnemy*> AngleEnemy;
-    TArray<class AEnemy*> NearEnemy = DetectNearByEnemy(SearchRadius);
+    TArray<AAssassinCharacter*> NearEnemy = DetectNearByEnemy(SearchRadius);
     FVector InputDirection = GetInputRightDirection()*MovementVector.X + GetInputForwardDirection() * MovementVector.Y;
     InputDirection.Normalize();
 
@@ -113,13 +173,20 @@ TArray<class AEnemy*> APlayerCharacter::DetectNearByEnemyInViewAngle(float Searc
 
         if (DotProduct > MaxDotProduct) //시야각 내에 있는지 확인
         {
-            AngleEnemy.Add(Enemy);
+            AngleEnemy.Add(Cast<AEnemy>(Enemy));
             
         }
     }
 
     return AngleEnemy;
 }
+
+void APlayerCharacter::Attack()
+{
+    if(CurrentPlayerWeaponState != EPlayerWeaponState::E_Melee) return;
+    Super::Attack();
+}
+
 void APlayerCharacter::AttachWeaponTo(class AWeapon* SwitchingWeapon, FName WeaponSocket, bool isEquip)
 {
     Super::AttachWeaponTo(SwitchingWeapon, WeaponSocket, isEquip);
@@ -138,22 +205,12 @@ void APlayerCharacter::AttachWeaponTo(class AWeapon* SwitchingWeapon, FName Weap
     }
 }
 
-AEnemy* APlayerCharacter::FindNearestEnemy(TArray<class AEnemy*> EnemyArr)
+float APlayerCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
+    AActor* DamageCauser)
 {
-    AEnemy* NearestEnemyResult = nullptr;
-    float MinDistance = TNumericLimits<float>::Max();
-
-    for (AEnemy* Enemy : EnemyArr)
-    {
-        // 현재 위치와 거리 계산
-        float Distance = FVector::Dist(Enemy->GetActorLocation(), GetActorLocation());
-
-        // 가장 가까운 적인지 확인
-        if (Distance < MinDistance)
-        {
-            NearestEnemyResult = Enemy;
-            MinDistance = Distance;
-        }
-    }
-    return NearestEnemyResult;
+    float Result = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+    Cast<AAssassinGameMode>(UGameplayStatics::GetGameMode(this))->HUDWidget->PlayerHPBar->SetHPBarPercent(HealthPoint/1000.f);
+    
+    return Result;
 }
+

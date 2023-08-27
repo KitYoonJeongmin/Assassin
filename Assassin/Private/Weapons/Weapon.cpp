@@ -41,9 +41,9 @@ void AWeapon::Tick(float DeltaTime)
 	SetActorRotation(Rot);*/
 }
 
-void AWeapon::InitializeWeapon()
+void AWeapon::InitializeWeapon(AAssassinCharacter* OwnerCharacter)
 {
-	Character = Cast<AAssassinCharacter>(GetAttachParentActor());
+	Character = Cast<AAssassinCharacter>(OwnerCharacter);
 }
 void AWeapon::Detach()
 {

@@ -57,13 +57,14 @@ void ASword::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	AttackCheck();
-
+	
+	
 	//DrawDebugDirectionalArrow(GetWorld(),GetActorLocation() + GetActorUpVector() * 50.f, GetActorLocation() + GetActorUpVector() * 50.f - GetActorForwardVector()*50.f, 50.f, FColor::Magenta);
 }
 
-void ASword::InitializeWeapon()
+void ASword::InitializeWeapon(AAssassinCharacter* OwnerCharacter)
 {
-	Super::InitializeWeapon();
+	Super::InitializeWeapon(OwnerCharacter);
 	Character->ACAnim->OnMontageEnded.AddDynamic(this, &ASword::OnAttackMontageEnded);
 	Character->ACAnim->OnNextAttackCheck.AddDynamic(this, &ASword::OnNextAttackCheck);
 	Character->ACAnim->OnEnableAttackHitCheck.AddDynamic(this, &ASword::OnEnableAttackCheck);
@@ -137,7 +138,7 @@ void ASword::MoveToNearestEnemy()
 	FVector CharacterToEnemyDirection = NearestEnemy->GetActorLocation() - Character->GetActorLocation();
 	CharacterToEnemyDirection.Z = 0;
 	CharacterToEnemyDirection.Normalize();
-	FrontFromEnemy -= CharacterToEnemyDirection * 120.f;
+	FrontFromEnemy -= CharacterToEnemyDirection * 140.f;
 	FRotator LookAtRot = UKismetMathLibrary::FindLookAtRotation(Character->GetActorLocation(), NearestEnemy->GetActorLocation());
 	LookAtRot.Pitch = Character->GetActorRotation().Pitch;
 	FLatentActionInfo Info;
@@ -158,27 +159,6 @@ void ASword::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 
 void ASword::Attack()
 {
-	if (Player != nullptr)
-	{
-		NearestEnemy = nullptr;
-		TArray<AEnemy*> EnemyArray = Player->DetectNearByEnemyInViewAngle(EnemyDetectRange, EnemyDetectFOV);
-		if (EnemyArray.Num() > 0)
-		{
-			NearestEnemy = Player->FindNearestEnemy(EnemyArray);
-			//DrawDebugSphere(GetWorld(), NearestEnemy->GetActorLocation(), 30.f, 10, FColor(181, 0, 0));
-		}
-		else
-		{
-			EnemyArray = Player->DetectNearByEnemy(EnemyDetectRange);
-			if (EnemyArray.Num() > 0)
-			{
-				NearestEnemy = Player->FindNearestEnemy(EnemyArray);
-				//DrawDebugSphere(GetWorld(), NearestEnemy->GetActorLocation(), 30.f, 10, FColor(181, 0, 0));
-			}
-
-		}
-		
-	}
 	
 	if (IsAttacking)
 	{
@@ -191,15 +171,8 @@ void ASword::Attack()
 	{
 		if (NearestEnemy != nullptr && NearestEnemy->GetHealthPoint() < 30.f)
 		{
-			TArray<AEnemy*> Enemys = Player->DetectNearByEnemy(300.f);
-			/*int32 EnemyNum = 0;
-			for (auto enemy : Enemys)
-			{
-				EnemyNum++;
-				GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Blue, FString::Printf(TEXT("%s"), *(enemy->GetName())));
-				DrawDebugSphere(GetWorld(), enemy->GetActorLocation(), 30.f, 10, FColor(181, 0, 0),false,3.f);
-			}
-			GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Blue, FString::Printf(TEXT("Near Enemy Number: %d"), EnemyNum));*/
+			TArray<AAssassinCharacter*> Enemys = Player->DetectNearByEnemy(300.f);
+
 			if (Enemys.Num() <= 1)
 			{
 				FinisherComp->PlayFinish(Character, NearestEnemy);
@@ -238,14 +211,8 @@ void ASword::OnNextAttackCheck()
 	{
 		if (NearestEnemy->GetHealthPoint() < 30.f)
 		{
-			TArray<AEnemy*> Enemys = Player->DetectNearByEnemy(300.f);
-			
-			/*for (auto enemy : Enemys)
-			{
-				
-				DrawDebugSphere(GetWorld(), enemy->GetActorLocation(), 30.f, 10, FColor(181, 0, 0), false, 3.f);
-			}
-			GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Blue, FString::Printf(TEXT("Near Enemy Number: %d"), EnemyNum));*/
+			TArray<AAssassinCharacter*> Enemys = Player->DetectNearByEnemy(300.f);
+
 			if (Enemys.Num() <=1)
 			{
 				FinisherComp->PlayFinish(Character, NearestEnemy);
@@ -287,13 +254,13 @@ bool ASword::GetIsBlock()
 
 void ASword::TryParry()
 {
-
-	if (Player == nullptr) return;
-	TArray<AEnemy*> EnemyArr = Player->DetectNearByEnemy(250.f);
+	//if (Player == nullptr) return;
+	/*
+	TArray<AAssassinCharacter*> EnemyArr = Character->DetectNearByEnemy(250.f);
 	for (auto Enemy : EnemyArr)
 	{
 		//적이 칼을 가지고있고 패링할 수 있는 상태라면
-		if (Enemy->GetCurrentWeapon() == Enemy->Weapon.SwordWeapon && Enemy->Weapon.SwordWeapon->CanParry)
+		if (Enemy->GetCurrentWeapon() == Enemy->Weapon.SwordWeapon)// && Enemy->Weapon.SwordWeapon->CanParry)
 		{
 			IsParry++;
 			FTimerHandle myTimerHandle;
@@ -306,16 +273,28 @@ void ASword::TryParry()
 			{
 				UAnimMontage* CurrentMontage = Enemy->ACAnim->GetCurrentActiveMontage();
 				EnemyAttackSectionIndex = CurrentMontage->GetSectionIndex(Enemy->ACAnim->Montage_GetCurrentSection(CurrentMontage));
-				
 			}
 			break;
 		}
 	}
+	*/
+	IsParry++;
+	FTimerHandle myTimerHandle;
+	GetWorld()->GetTimerManager().SetTimer(myTimerHandle, FTimerDelegate::CreateLambda([&]()
+		{
+			IsParry--;
+			GetWorld()->GetTimerManager().ClearTimer(myTimerHandle);// 타이머 초기화
+		}), 1.0f, false);
 
 }
 
-void ASword::PlayParry()
+void ASword::PlayParry(AAssassinCharacter* Enemy)
 {
+	if (Enemy->ACAnim->GetCurrentActiveMontage() != nullptr)
+	{
+		UAnimMontage* CurrentMontage = Enemy->ACAnim->GetCurrentActiveMontage();
+		EnemyAttackSectionIndex = CurrentMontage->GetSectionIndex(Enemy->ACAnim->Montage_GetCurrentSection(CurrentMontage));
+	}
 	Character->ACAnim->PlaySwordParryMontage(EnemyAttackSectionIndex);
 }
 

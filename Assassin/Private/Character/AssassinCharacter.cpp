@@ -1,13 +1,15 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Character/AssassinCharacter.h"
+
+#include "DetectionWidget.h"
 #include "Character/ACAnimInstance.h"
 #include "Character/PlayerCharacter.h"
 #include "Component/FootIKComponent.h"
 #include "Component/FinisherComponent.h"
 #include "Weapons/Weapon.h"
 #include "Weapons/Sword.h"
-#include "Weapons/Daggle.h"
+#include "Weapons/Dagger.h"
 
 #include "MotionWarpingComponent.h"
 #include "Camera/CameraComponent.h"
@@ -25,6 +27,11 @@
 #include "Kismet/GameplayStatics.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
+#include "Character/Enemy/Enemy.h"
+#include "Component/EagleVisionComponent.h"
+#include "Component/OutlineComponent.h"
+#include "Components/WidgetComponent.h"
+#include "Weapons/PlayerSword.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -46,7 +53,7 @@ AAssassinCharacter::AAssassinCharacter()
 	}
 	
 	// Set size for collision capsule
-	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
+	GetCapsuleComponent()->InitCapsuleSize(70.f, 96.0f);
 		
 	// Don't rotate when the controller rotates. Let that just affect the camera.
 	bUseControllerRotationPitch = false;
@@ -56,8 +63,8 @@ AAssassinCharacter::AAssassinCharacter()
 	// Configure character movement
 	GetCharacterMovement()->bOrientRotationToMovement = true; // Character moves in the direction of input...	
 
-	WalkSpeed = 250.f;
-	RunSpeed = 600.f;
+	WalkSpeed = 300.f;
+	RunSpeed = 700.f;
 	// Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
 	// instead of recompiling to adjust them
 	GetCharacterMovement()->JumpZVelocity = 700.f;
@@ -92,6 +99,18 @@ AAssassinCharacter::AAssassinCharacter()
 	//Assassination
 	MotionWarpingComp = CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarpingComponent"));
 
+	//Outline
+	OutlineComponent = CreateDefaultSubobject<UOutlineComponent>(TEXT("OutlineComponent"));
+
+	//EagleVision
+	EagleVisionComponent = CreateDefaultSubobject<UEagleVisionComponent>(TEXT("EagleVisionComponent"));
+
+	//Detection Widget
+	DetectionWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("DETECTBARWIDGET"));
+	DetectionWidget->SetupAttachment(RootComponent);
+	DetectionWidget->SetRelativeLocation(FVector(0, 0, 120.f));
+
+	
 }
 void AAssassinCharacter::PostInitializeComponents()
 {
@@ -101,6 +120,10 @@ void AAssassinCharacter::PostInitializeComponents()
 	ACAnim->OnMontageEnded.AddDynamic(this, &AAssassinCharacter::OnAttackMontageEnded);
 	//Anim IK
 	FootIKComp->m_pCharacter = this;
+
+	//Detection
+	DetectionWidget->SetWidgetSpace(EWidgetSpace::World);
+	//EnableDetectionWidget(false);
 
 }
 void AAssassinCharacter::BeginPlay()
@@ -118,12 +141,8 @@ void AAssassinCharacter::BeginPlay()
 
 	TargetWalkSpeed = 250.f;
 
-	//Character Weapons Spawn  Sword
-	Weapon.SwordWeapon = GetWorld()->SpawnActor<ASword>(FVector::ZeroVector, FRotator::ZeroRotator);
-	AttachWeaponTo(Weapon.SwordWeapon, FName("SwordSocket"), false);
-	Weapon.SwordWeapon->InitializeWeapon();
-
-	
+	//Detection
+	EnableDetectionWidget(false);
 }
 
 void AAssassinCharacter::Tick(float DeltaTime)
@@ -142,13 +161,19 @@ void AAssassinCharacter::Tick(float DeltaTime)
 		isWalk = false;
 		break;
 	}
-
 	
 	//MoveSpeed
 	float InterpSpeed = 0.5f;
 	float Alpha = FMath::Clamp(DeltaTime / InterpSpeed, 0.0f, 1.0f);
 	float NewWalkSpeed = FMath::Lerp(GetCharacterMovement()->MaxWalkSpeed, TargetWalkSpeed, Alpha);
 	GetCharacterMovement()->MaxWalkSpeed = NewWalkSpeed;
+	GetCharacterMovement()->RotationRate = FRotator(0.f, 400.f*(WalkSpeed/GetVelocity().Size()), 0.f);
+
+	//UserWidget
+	FRotator WidgetRot = UGameplayStatics::GetPlayerPawn(GetWorld(),0)->GetControlRotation();
+	WidgetRot.Pitch = 0.f;
+	WidgetRot.Yaw += 180.f;
+	DetectionWidget->SetWorldRotation(WidgetRot);
 
 }
 
@@ -195,11 +220,7 @@ void AAssassinCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 
 		//Parry
 		EnhancedInputComponent->BindAction(ParryAction, ETriggerEvent::Started, this, &AAssassinCharacter::TryParry);
-		
-		
 	}
-
-
 }
 
 void AAssassinCharacter::Move(const FInputActionValue& Value)
@@ -358,7 +379,8 @@ void AAssassinCharacter::RunStart()
 
 void AAssassinCharacter::Run()
 {
-	if (CurrentWeapon != Weapon.SwordWeapon)
+	if(CurrnetMovementState == EMovementState::E_Stealthing) return;
+	if (CurrentWeapon == Weapon.DaggleWeapon)
 	{
 		TargetWalkSpeed = RunSpeed;
 	}
@@ -397,7 +419,7 @@ void AAssassinCharacter::SetWalkSpeed(float TargetSpeed)
 
 void AAssassinCharacter::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
-	if (Montage->GetName().Contains("Hit")&& !bInterrupted)
+	if (Montage->GetName().Contains("Hit"))
 	{
 		OnStunEnd.Broadcast();
 	}
@@ -428,26 +450,37 @@ float AAssassinCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 	}
 
 	//Push back
-	FVector DamagedFrom = EventInstigator->GetPawn() ? EventInstigator->GetPawn()->GetActorLocation() : GetActorLocation();
+	FVector DamagedFrom = EventInstigator ? EventInstigator->GetPawn()->GetActorLocation() : GetActorLocation();
 	FVector DamageDirection = DamagedFrom - GetActorLocation(); 
 	DamageDirection.Z = 0.f;
 	DamageDirection.Normalize();
 	DamageDirection *= -1;
-	FRotator NewRot = UKismetMathLibrary::FindLookAtRotation(this->GetActorLocation(), EventInstigator->GetPawn()->GetActorLocation());
+	FRotator NewRot = UKismetMathLibrary::FindLookAtRotation(this->GetActorLocation(), DamagedFrom);
 	SetActorRotation(NewRot);
+	
 	//Parrying 상태라면 무시
 	if (CurrentWeapon == Weapon.SwordWeapon && Weapon.SwordWeapon->IsParry > 0)
 	{
 		AAssassinCharacter* Enemy = Cast<AAssassinCharacter>(EventInstigator->GetPawn());
+		Weapon.SwordWeapon->PlayParry(Enemy);
+
+		Enemy->ACAnim->StopAllMontages(0.f);
 		Enemy->ACAnim->PlaySwordHitMontage();
-		Weapon.SwordWeapon->PlayParry();
+		Enemy->LaunchCharacter(Enemy->GetActorUpVector()*50.f,false, true);
+		Enemy->LaunchCharacter(Enemy->GetActorForwardVector()*-900.f,true, false);
+		
+		
 		UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), SparkN, GetActorLocation(), DamageCauser->GetActorRotation() + FRotator(0.f, 0.f, -90.f));
 		return 0.f;
 	}
-
-
+	
 	//MontagePlay
+	ACAnim->StopAllMontages(0.f);
 	ACAnim->PlaySwordHitMontage();
+	LaunchCharacter(GetActorUpVector()*50.f,false, true);
+	LaunchCharacter(GetActorForwardVector()*-1000.f,true, false);
+
+	
 	if (CurrentWeapon == Weapon.SwordWeapon && Weapon.SwordWeapon->GetIsBlock()) //막고 있는 상태일 때
 	{
 		UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), SparkN, GetActorLocation(), DamageCauser->GetActorRotation()+FRotator(0.f,0.f,-90.f));
@@ -459,10 +492,11 @@ float AAssassinCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 		HealthPoint -= DamageAmount;
 	}
 	
-
+	GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::White, FString::Printf(TEXT("HealthPoint: %f"), HealthPoint));
 	//Death
 	if (HealthPoint <= 0.f)
 	{
+		IsDead = true;
 		ACAnim->PlaySwordDeathMontage();
 	}
 	
@@ -528,7 +562,7 @@ void AAssassinCharacter::AttachWeaponTo(AWeapon* SwitchingWeapon, FName WeaponSo
 		{
 			ACAnim->WeaponState = EWeaponState::E_Sword;
 		}
-		else if(Cast<ADaggle>(SwitchingWeapon))
+		else if(Cast<ADagger>(SwitchingWeapon))
 		{
 			ACAnim->WeaponState = EWeaponState::E_Daggle;
 		}
@@ -553,9 +587,12 @@ void AAssassinCharacter::Dead()
 	{
 		CurrentWeapon->Detach();
 	}
-	
+	EagleVisionComponent->DisableEagleVisionMat();
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	GetMesh()->SetSimulatePhysics(true);
+
+	EnableDetectionWidget(false);
+	
 }
 
 float AAssassinCharacter::GetHealthPoint()
@@ -574,8 +611,75 @@ void AAssassinCharacter::SetCustomDepth(bool IsEnable)
 		if(SKMesh)
 		{
 			SKMesh->SetRenderCustomDepth(IsEnable);
+			
 		}
 	}
 }
+
+UEagleVisionComponent* AAssassinCharacter::GetEagleVisionComponent()
+{
+	return EagleVisionComponent;
+}
+
+void AAssassinCharacter::EnableDetectionWidget(bool isEnable)
+{
+	DetectionWidget->SetVisibility(isEnable);
+}
+
+void AAssassinCharacter::UpdateDetectionWidget(float DetectLevel)
+{
+	/*
+	if(Cast<UDetectionWidget>(DetectionWidget->GetUserWidgetObject()))
+	{
+		Cast<UDetectionWidget>(DetectionWidget->GetUserWidgetObject())->SetDetectProgressValue(DetectLevel/100.f);
+	}*/
+	Cast<UDetectionWidget>(DetectionWidget->GetUserWidgetObject())->SetDetectProgressValue(DetectLevel/100.f);
+}
+
+TArray<AAssassinCharacter*> AAssassinCharacter::DetectNearByEnemy(float SearchRadius)
+{
+	TArray<AAssassinCharacter*> NearbyEnemies;
+	const FVector CharacterLocation = this->GetActorLocation();
+	TArray<AActor*> ActorsToIgnore;
+	ActorsToIgnore.Add(this);
+	TArray<FHitResult> HitResults;
+	UKismetSystemLibrary::SphereTraceMulti(GetWorld(), CharacterLocation, CharacterLocation, SearchRadius, DetectEnemyTrace, false, ActorsToIgnore, EDrawDebugTrace::None, HitResults, true);
+    
+	for (const FHitResult& HitResult : HitResults)
+	{
+		AEnemy* Enemy = Cast<AEnemy>(HitResult.GetActor());
+		if (Enemy != nullptr && !Enemy->GetIsDead())
+		{
+			// 주변에 적이 검색되었으므로 처리
+			NearbyEnemies.AddUnique(Enemy);
+            
+		}
+	}
+
+	return NearbyEnemies;
+}
+
+AAssassinCharacter* AAssassinCharacter::FindNearestEnemy(TArray<AAssassinCharacter*> EnemyArr)
+{
+	AAssassinCharacter* NearestEnemyResult = nullptr;
+	float MinDistance = TNumericLimits<float>::Max();
+
+	for (AAssassinCharacter* Enemy : EnemyArr)
+	{
+		// 현재 위치와 거리 계산
+		float Distance = FVector::Dist(Enemy->GetActorLocation(), GetActorLocation());
+
+		// 가장 가까운 적인지 확인
+		if (Distance < MinDistance)
+		{
+			NearestEnemyResult = Enemy;
+			MinDistance = Distance;
+		}
+	}
+	return NearestEnemyResult;
+}
+
+
+
 
 

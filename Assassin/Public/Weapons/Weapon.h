@@ -26,7 +26,7 @@ public:
 	UFUNCTION() /**공격을 시작할 때 동작*/
 		virtual void Attack() PURE_VIRTUAL(AWeapon::Attack, );
 	UFUNCTION() 
-		virtual void InitializeWeapon();
+		virtual void InitializeWeapon(class AAssassinCharacter* OwnerCharacter);
 	bool IsUsed;
 protected:
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Mesh")

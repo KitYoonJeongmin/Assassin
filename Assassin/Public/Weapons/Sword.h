@@ -22,7 +22,7 @@ protected:
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-	virtual void InitializeWeapon() override;
+	virtual void InitializeWeapon(AAssassinCharacter* OwnerCharacter) override;
 
 	//Attack
 public:
@@ -37,7 +37,7 @@ public:
 	/**가장 가까운 적앞으로 이동*/
 	void MoveToNearestEnemy();
 	/**콤보 공격을 실행하는 함수*/
-	virtual void Attack() override;
+	virtual void Attack();
 
 	UFUNCTION()
 	void OnEnableAttackCheck();
@@ -48,7 +48,7 @@ public:
 
 public:
 	ETraceTypeQuery SwordAttackType;
-private:
+protected:
 	bool CanNextCombo;
 	bool CanAttackCheck;
 	bool IsComboInputOn;
@@ -63,7 +63,7 @@ private:
 	//NearEnemy
 public:
 	void SetNearestEnemy(class AAssassinCharacter* Target);
-private:
+protected:
 	float NearEnemyRange;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy", meta = (AllowPrivateAccess = "true"))
 	class AAssassinCharacter* NearestEnemy;
@@ -80,7 +80,7 @@ public:
 	/**Parry를 시도*/
 	void TryParry();
 	UFUNCTION()
-	void PlayParry();
+	void PlayParry(AAssassinCharacter* Enemy);
 
 private:
 	bool IsBlock;

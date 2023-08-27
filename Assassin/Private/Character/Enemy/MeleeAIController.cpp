@@ -22,15 +22,17 @@
 #include "DrawDebugHelpers.h"
 #include "..\..\..\Public\Character\Enemy\MeleeAIController.h"
 
+#include "DetectionWidget.h"
+#include "GameFrameworks/AssassinGameMode.h"
+#include "Kismet/GameplayStatics.h"
 
-const FName AMeleeAIController::CanSeePlayerKey(TEXT("CanSeePlayer"));
-const FName AMeleeAIController::TargetKey(TEXT("Target"));
+
+
+const FName AMeleeAIController::CanHearSoundKey(TEXT("CanHearSound"));
 const FName AMeleeAIController::TargetLocKey(TEXT("TargetLoc"));
-const FName AMeleeAIController::IsStunKey(TEXT("IsStun"));
-const FName AMeleeAIController::IsDeadKey(TEXT("IsDead"));
 const FName AMeleeAIController::IsAttackingKey(TEXT("IsAttacking"));
-const FName AMeleeAIController::AIStateKey(TEXT("AIState"));
 
+const FName AMeleeAIController::LastTargetLocKey(TEXT("LastTargetLoc"));
 
 
 AMeleeAIController::AMeleeAIController()
@@ -47,22 +49,7 @@ AMeleeAIController::AMeleeAIController()
 		BTAsset = BTObject.Object;
 	}
 
-	SetPerceptionComponent(*CreateOptionalDefaultSubobject<UAIPerceptionComponent>(TEXT("AI Perception")));
-	SightConfig = CreateDefaultSubobject<UAISenseConfig_Sight>(TEXT("Sight Config"));
-	SightConfig->SightRadius = AISightRadius; // 시각 반경
-	SightConfig->LoseSightRadius = SightConfig->SightRadius + AILoseSightRadius; // 시각 상실 반경
-	SightConfig->PeripheralVisionAngleDegrees = AIFieldOfView; // 주변 시야각
-	SightConfig->SetMaxAge(AISightAge); //자극이 잊히기 까지의 시간 (0이면 잊지않음)
-	SightConfig->AutoSuccessRangeFromLastSeenLocation = AILastSeenLocation;	//마지막으로 본 위치의 해당 범위내에 있으면 이미 본 대상을 항상 볼 수 있음
-
-	SightConfig->DetectionByAffiliation.bDetectEnemies = true; // 소속별 탐지 적
-	SightConfig->DetectionByAffiliation.bDetectFriendlies = true; // 소속별 탐지 팀
-	SightConfig->DetectionByAffiliation.bDetectNeutrals = true; // 소속별 탐지 중립
-
-	GetPerceptionComponent()->SetDominantSense(SightConfig->GetSenseImplementation());
-	GetPerceptionComponent()->ConfigureSense(*SightConfig);
-	GetPerceptionComponent()->OnTargetPerceptionUpdated.AddDynamic(this, &AMeleeAIController::OnTargetDetected); //지정된 대상에 대해 인식 정보가 업데이트되었음을 ​​바인딩된 모든 개체에 알림
-
+	
 	//AI Perception::Hearing 설정
 	HearingConfig = CreateDefaultSubobject<UAISenseConfig_Hearing>(TEXT("Hearing Config"));
 
@@ -70,7 +57,15 @@ AMeleeAIController::AMeleeAIController()
 	HearingConfig->LoSHearingRange = 3000.f;	//범위 디버거
 	HearingConfig->SetMaxAge(5.f);
 
+	HearingConfig->DetectionByAffiliation.bDetectEnemies = true; // 소속별 탐지 적
+	HearingConfig->DetectionByAffiliation.bDetectFriendlies = true; // 소속별 탐지 팀
+	HearingConfig->DetectionByAffiliation.bDetectNeutrals = true; // 소속별 탐지 중립
+	
 	GetPerceptionComponent()->ConfigureSense(*HearingConfig);	//감각 추가
+
+	IsIncreaseDetectionLevel = false;	//감지를 증가하지 않도록 설정
+	DetectionLevel = 0.f; //detection level을 0으로 설정
+	CanSense = true;	//감각을 느낄 수 있는가
 }
 
 void AMeleeAIController::OnPossess(APawn* InPawn)
@@ -83,20 +78,8 @@ void AMeleeAIController::OnPossess(APawn* InPawn)
 		{
 			UE_LOG(LogTemp, Error, TEXT("AIController couldn't run behavior tree!"));
 		}
-		Blackboard = BlackboardComp;
-		Blackboard->SetValueAsBool(CanSeePlayerKey, false);
-		Blackboard->SetValueAsBool(IsDeadKey, false);
-		Blackboard->SetValueAsEnum(AIStateKey, (int8)EAIState::E_Holding);
-		if (Cast<AEnemy>(InPawn))
-		{
-			OwnerEnemy = Cast<AEnemy>(InPawn);
-			OwnerEnemy->OnStunStart.AddDynamic(this, &AMeleeAIController::OnDisableBT);
-			OwnerEnemy->OnStunEnd.AddDynamic(this, &AMeleeAIController::OnEnableBT);
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Can't possess to Enemy"));
-		}
+		Blackboard->SetValueAsBool(CanHearSoundKey, false);
+		
 	}
 }
 
@@ -106,31 +89,42 @@ void AMeleeAIController::BeginPlay()
 	OwnerEnemy->ACAnim->OnFinished.AddDynamic(this, &AMeleeAIController::SetDead);
 	OwnerEnemy->ACAnim->OnMontageEnded.AddDynamic(this, &AMeleeAIController::OnAttackMontageEnded);
 	OwnerEnemy->ACAnim->OnMontageStarted.AddDynamic(this, &AMeleeAIController::OnAttackMontageStarted);
-
-	//OwnerEnemy->ACAnim->OnMontageStarted
 }
 
-void AMeleeAIController::OnTargetDetected(AActor* actor, FAIStimulus const Stimulus)
+void AMeleeAIController::Tick(float DeltaSeconds)
 {
+	Super::Tick(DeltaSeconds);
+
+	UpdateDetectionLevel();
+}
+
+void AMeleeAIController:: OnTargetDetected(AActor* actor, FAIStimulus const Stimulus)
+{
+	if(OwnerEnemy->GetIsDead()) return;
+	if(Blackboard->GetValueAsBool(IsDeadKey)) return;
+	if(!CanSense) return;
+
 	switch (Stimulus.Type)
 	{
 	case 0:	//Sight
 		Sight(actor, Stimulus);
 		break;
 	case 1:	//Hearing
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::White, FString::Printf(TEXT("Sound")));
 		Hearing(actor, Stimulus);
 		break;
 	}
 	if (!Stimulus.WasSuccessfullySensed())	//보던것, 듣던것을 잃음
 	{
+		
 		if (Cast<APlayerCharacter>(actor))	//PlayerCharacter를 못볼 때
 		{
-			//칼 넣기
-			OwnerEnemy->ACAnim->PlayEquipMontage(false);
-
-			//BT값 초기화
-			Blackboard->SetValueAsBool(CanSeePlayerKey, false);
-			Blackboard->SetValueAsObject(TargetKey, nullptr);
+			if(Stimulus.Type == 0)	//시각 정보를 잃었을 때
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Enemy Lose Sight"));
+				LoseSense();
+			}
+			
 		}
 	}
 }
@@ -139,25 +133,16 @@ void AMeleeAIController::Sight(AActor* actor, FAIStimulus const Stimulus)
 {
 	if (Cast<APlayerCharacter>(actor))	//플레이어를 봤다면
 	{
-		//칼 착용
-		OwnerEnemy->ACAnim->PlayEquipMontage(true);
-		/*ASword* Sword = Cast<ASword>(OwnerEnemy->Weapon.SwordWeapon);
-		if (Sword != nullptr)
-		{
-			Sword->SetNearestEnemy(Cast<AAssassinCharacter>(actor));
-			UE_LOG(LogTemp, Warning, TEXT("Sword is not null"));
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Sword is null"));
-		}*/
-		Blackboard->SetValueAsBool(CanSeePlayerKey, true);
+		OwnerEnemy->ACAnim->Montage_Stop(0.2f);
 		Blackboard->SetValueAsObject(TargetKey, Cast<APlayerCharacter>(actor));
 
 		AActor* FocusActor = actor; // 포커스를 설정할 대상 액터
 		//EAIFocusPriority::Type Priority = FAIFocusPriority(1); // 포커스 우선순위
 
 		SetFocus(FocusActor);
+		Blackboard->SetValueAsBool(CanSeePlayerKey, true);
+		Blackboard->SetValueAsEnum(AIStateKey, (int8)EAIState::E_Warning);
+		IsIncreaseDetectionLevel = true;//감지레벨 증가
 		return;
 	}
 }
@@ -165,23 +150,50 @@ void AMeleeAIController::Sight(AActor* actor, FAIStimulus const Stimulus)
 
 void AMeleeAIController::Hearing(AActor* actor, FAIStimulus const Stimulus)
 {
-
+	Blackboard->SetValueAsBool(CanHearSoundKey, true);
+	Blackboard->SetValueAsVector(TargetLocKey, actor->GetActorLocation());
 }
 
-void AMeleeAIController::OnDisableBT()
+void AMeleeAIController::LoseSense()
 {
-	Blackboard->SetValueAsBool(IsStunKey, true);
+	//칼 넣기
+	if(OwnerEnemy->GetCurrentWeapon() == OwnerEnemy->Weapon.SwordWeapon)
+	{
+		OwnerEnemy->ACAnim->PlayEquipMontage(false);
+	}
+	
 
-}
+	//BT값 초기화
+	if(Cast<AActor>(Blackboard->GetValueAsObject(TargetKey)))
+	{
+		Blackboard->SetValueAsVector(LastTargetLocKey, Cast<AActor>(Blackboard->GetValueAsObject(TargetKey))->GetActorLocation());
+	}
+	Blackboard->SetValueAsBool(CanSeePlayerKey, false);
+	Blackboard->SetValueAsObject(TargetKey, nullptr);
+	Blackboard->SetValueAsEnum(AIStateKey, (int8)EAIState::E_Warning);
+	SetFocus(nullptr);
+	
+	//감지레벨 감소
+	IsIncreaseDetectionLevel = false;
 
-void AMeleeAIController::OnEnableBT()
-{
-	Blackboard->SetValueAsBool(IsStunKey, false);
+	//게임 모드의 전투 적 수 감소
+	if(DetectionLevel >=100.f)
+	{
+		Cast<AAssassinGameMode>(UGameplayStatics::GetGameMode(GetWorld()))->CountCombatEnemyNum(false);
+	}
 }
 
 void AMeleeAIController::SetDead()
 {
-	Blackboard->SetValueAsBool(IsDeadKey, true);
+	Super::SetDead();
+	if(OwnerEnemy->GetIsDead()) return;
+	IsIncreaseDetectionLevel = false;
+	
+	if(DetectionLevel >=100.f)
+	{
+		Cast<AAssassinGameMode>(UGameplayStatics::GetGameMode(GetWorld()))->CountCombatEnemyNum(false);
+	}
+	
 }
 
 void AMeleeAIController::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
@@ -192,7 +204,7 @@ void AMeleeAIController::OnAttackMontageEnded(UAnimMontage* Montage, bool bInter
 	}
 	if (Montage->GetName().Contains("Vic"))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("-------End Finishing ------"));
+		//UE_LOG(LogTemp, Warning, TEXT("-------End Finishing ------"));
 		Blackboard->SetValueAsObject(AMeleeAIController::IsAttackingKey, nullptr);
 	}
 }
@@ -201,7 +213,45 @@ void AMeleeAIController::OnAttackMontageStarted(UAnimMontage* Montage)
 {
 	if (Montage->GetName().Contains("Vic"))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("-------Start Finishing ------"));
+		//UE_LOG(LogTemp, Warning, TEXT("-------Start Finishing ------"));
 		Blackboard->SetValueAsObject(AMeleeAIController::IsAttackingKey, OwnerEnemy);
 	}
 }
+
+void AMeleeAIController::UpdateDetectionLevel()
+{
+	if(OwnerEnemy->GetIsDead()) return;
+	if(IsIncreaseDetectionLevel && DetectionLevel<100.f)	//증가
+	{
+		DetectionLevel += 0.25f;
+		OwnerEnemy->EnableDetectionWidget(true);
+		if(DetectionLevel >= 100.f && OwnerEnemy->GetCurrentWeapon() != OwnerEnemy->Weapon.SwordWeapon)
+		{
+			//칼 착용
+			OwnerEnemy->ACAnim->PlayEquipMontage(true);
+			Blackboard->SetValueAsEnum(AIStateKey, (int8)EAIState::E_Holding);
+			//UE_LOG(LogTemp, Warning, TEXT("Equip Sword!!"));
+
+			Cast<AAssassinGameMode>(UGameplayStatics::GetGameMode(GetWorld()))->CountCombatEnemyNum(true);
+		}
+	}
+	else if(!IsIncreaseDetectionLevel &&DetectionLevel>0.f)	//감소
+	{
+		DetectionLevel -= 0.25f;
+		if(DetectionLevel<=0.f)
+		{
+			OwnerEnemy->EnableDetectionWidget(false);
+			Blackboard->SetValueAsEnum(AIStateKey, (int8)EAIState::E_Idle);
+		}
+	}
+	DetectionLevel = FMath::Clamp(DetectionLevel,0.f,100.f);
+	OwnerEnemy->UpdateDetectionWidget(DetectionLevel);
+}
+
+float AMeleeAIController::GetDetectionLevel() const
+{
+	return DetectionLevel;
+}
+
+
+

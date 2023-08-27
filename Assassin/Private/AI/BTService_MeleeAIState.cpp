@@ -14,10 +14,12 @@ UBTService_MeleeAIState::UBTService_MeleeAIState()
 void UBTService_MeleeAIState::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
 	Super::TickNode(OwnerComp, NodeMemory, DeltaSeconds);
-
+	
 	AEnemy* OwnerEnemy = Cast<AEnemy>(OwnerComp.GetAIOwner()->GetPawn());
 	if (nullptr == OwnerEnemy) return;
 
+	if(OwnerComp.GetBlackboardComponent()->GetValueAsEnum(AMeleeAIController::AIStateKey) == (int8)EAIState::E_Warning) return;
+	
 	AActor* Target = Cast<AActor>(OwnerComp.GetBlackboardComponent()->GetValueAsObject(AMeleeAIController::TargetKey));
 	if (Target == nullptr) return;
 
@@ -36,5 +38,4 @@ void UBTService_MeleeAIState::TickNode(UBehaviorTreeComponent& OwnerComp, uint8*
 		}
 		OwnerComp.GetBlackboardComponent()->SetValueAsEnum(AMeleeAIController::AIStateKey, (int8)EAIState::E_Holding);
 	}
-
 }

@@ -6,7 +6,7 @@
 #include "Character/PlayerCharacter.h"
 #include "Character/Enemy/Enemy.h"
 #include "Weapons/Sword.h"
-#include "Weapons/Daggle.h"
+#include "Weapons/Dagger.h"
 #include "Component/FinisherComponent.h"
 #include "Component/FootIKComponent.h"
 
@@ -34,6 +34,9 @@ UACAnimInstance::UACAnimInstance()
 	//HeadTracking
 	HeadTrackingRadius = 300.f;
 	CanHeadTracking = true;
+
+	//Stealth
+	IsStealth = false;
 }
 
 void UACAnimInstance::NativeBeginPlay()
@@ -53,7 +56,7 @@ void UACAnimInstance::NativeBeginPlay()
 	}
 	MontagePriority.Add(SwordHitMon);
 	MontagePriority.Add(SwordParryMon);
-	
+	MontagePriority.Add(LookingAroundMon);
 	//HeadTracking
 	if (Character->GetController())
 	{
@@ -94,6 +97,7 @@ void UACAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	
 	//HeadTracking
 	TrackHead();
+	
 }
 
 
@@ -147,15 +151,20 @@ void UACAnimInstance::PlaySwordAttackMontage()
 
 void UACAnimInstance::PlaySwordHitMontage()
 {
+	
 	Character->OnStunStart.Broadcast();
-	if (IsBlock)
+	
+	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Debug:  %s"), *Character->GetActorForwardVector().ToString()));
+	if (IsBlock) //막고있는 몽타주
 	{
 		Montage_Play(SwordBlockHitMon, 1.f);
-		return;
+	}
+	else // 맞아서 뒤로 밀려나는 몽타주
+	{
+		Montage_Play(SwordHitMon, 1.f);
 	}
 	
-	//몽타주 실행
-	Montage_Play(SwordHitMon, 1.f);
+	
 }
 
 void UACAnimInstance::PlaySwordRollMontage()
@@ -229,6 +238,7 @@ UAnimMontage* UACAnimInstance::PlayAssassinMontage()
 
 void UACAnimInstance::PlayAssassinedMontage(UAnimMontage* FinisherMon)
 {
+	OnFinished.Broadcast();
 	Montage_Play(AssassinationMap[FinisherMon], 1.f);
 }
 
@@ -254,6 +264,7 @@ UAnimMontage* UACAnimInstance::PlayAssassinForwardMontage()
 
 void UACAnimInstance::PlayAssassinedForwardMontage(UAnimMontage* FinisherMon)
 {
+	OnFinished.Broadcast();
 	Montage_Play(AssassinationForwardMap[FinisherMon], 1.f);
 }
 
@@ -261,6 +272,22 @@ void UACAnimInstance::PlayUnderAssassinationMontage(AAssassinCharacter* TargetCh
 {
 	Montage_Play(UnderAssassinMon, 1.f);
 	TargetCharacter->ACAnim->Montage_Play(UnderAssassinedMon,1.f);
+}
+
+void UACAnimInstance::PlayThrowDaggerMontage()
+{
+	Montage_Play(ThrowDagger, 1.5f);
+}
+
+void UACAnimInstance::PlayThrowSmokeBombMontage()
+{
+	Montage_Play(ThrowSmokeBomb, 1.0f);
+}
+
+void UACAnimInstance::PlayLaunchSkillMontage()
+{
+	Montage_Play(LaunchSkill, 1.0f);
+	
 }
 
 float UACAnimInstance::GetDistancebySwordFinish(UAnimMontage* FinisherMon)
@@ -304,7 +331,7 @@ void UACAnimInstance::AnimNotify_ClimbJump()
 {
 	//UE_LOG(LogTemp, Log, TEXT("Climb"));
 	UpdateMovementState(Character->CurrnetMovementState);
-	Character->Jump();
+	//Character->Jump();
 	Character->ClimbingComp->MoveToLedge();
 }
 
@@ -408,10 +435,11 @@ bool UACAnimInstance::PlayMontagePriority(UAnimMontage* PlayMontage, float PlayR
 void UACAnimInstance::TrackHead()
 {
 	//HeadTracking
+	/*
 	APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(Character);
 	if (PlayerCharacter)
 	{
-		AEnemy* HeadTrackingEnemy = PlayerCharacter->FindNearestEnemy(PlayerCharacter->DetectNearByEnemy(HeadTrackingRadius));
+		AAssassinCharacter* HeadTrackingEnemy = PlayerCharacter->FindNearestEnemy(PlayerCharacter->DetectNearByEnemy(HeadTrackingRadius));
 		if (HeadTrackingEnemy)
 		{
 			FVector EnemyDirection = (HeadTrackingEnemy->GetActorLocation() - Character->GetActorLocation());
@@ -435,6 +463,29 @@ void UACAnimInstance::TrackHead()
 		HeadTrackingTargetLoc = FMath::Lerp(HeadTrackingTarget, HeadTrackingTargetLoc, 0.95f);
 		//DrawDebugSphere(GetWorld(), HeadTrackingTargetLoc, 30.f, 10, FColor(181, 0, 0));
 	}
+*/
+	AAssassinCharacter* HeadTrackingEnemy = Character->FindNearestEnemy(Character->DetectNearByEnemy(HeadTrackingRadius));
+	if (HeadTrackingEnemy)
+	{
+		FVector EnemyDirection = (HeadTrackingEnemy->GetActorLocation() - Character->GetActorLocation());
+		EnemyDirection.Normalize();
+		float DotProduct = FVector::DotProduct(EnemyDirection, Character->GetController()->GetControlRotation().Vector());
+		float MaxDotProduct = FMath::Cos(FMath::DegreesToRadians(110.f));    //시야각 계산
+
+		if (DotProduct > MaxDotProduct) //시야각 내에 있는지 확인
+			{
+			HeadTrackingTarget = HeadTrackingEnemy->GetMesh()->GetSocketLocation(FName("neck_01"));
+			}
+		else
+		{
+			HeadTrackingTarget = Character->GetActorLocation() + Character->GetController()->GetControlRotation().Vector() * 300.f;
+		}
+	}
+	else
+	{
+		HeadTrackingTarget = Character->GetActorLocation() + Character->GetController()->GetControlRotation().Vector() * 300.f;
+	}
+	HeadTrackingTargetLoc = FMath::Lerp(HeadTrackingTarget, HeadTrackingTargetLoc, 0.95f);
 }
 
 void UACAnimInstance::SetControllerInputDirection()
@@ -454,14 +505,32 @@ void UACAnimInstance::SetControllerInputDirection()
 	if (DotForward != 1.f)
 	{
 		FVector CharRightVec = Player->GetActorRightVector();
-		RightDirection = FVector::DotProduct(CharRightVec,ControllerVec);//오른쪽 내적 1: 오른, -1: 왼
+		RightDirection = FVector::DotProduct(CharRightVec,ControllerVec)*0.5f;//오른쪽 내적 1: 오른, -1: 왼
 		if(DotForward<0)
 		{
-			RightDirection+=0.5;
+			if(RightDirection>0)
+			{
+				RightDirection+=0.5;
+			}
+			else
+			{
+				RightDirection-=0.5;
+			}
+			
 		}
 	}
 	else
 	{
 		RightDirection = 0.f; 
 	}
+}
+
+void UACAnimInstance::AnimNotify_SpawnDagger()
+{
+	OnSpawnDagger.Broadcast();
+}
+
+void UACAnimInstance::AnimNotify_SpawnSmokeBomb()
+{
+	OnSpawnSmokeBomb.Broadcast();
 }
