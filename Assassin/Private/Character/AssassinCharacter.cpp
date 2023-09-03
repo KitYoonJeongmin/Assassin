@@ -31,7 +31,9 @@
 #include "Component/EagleVisionComponent.h"
 #include "Component/OutlineComponent.h"
 #include "Components/WidgetComponent.h"
+#include "Weapons/Arrow.h"
 #include "Weapons/PlayerSword.h"
+#include "Weapons/ThrowDagger.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -443,63 +445,75 @@ void AAssassinCharacter::UpdateMovementState(EMovementState CurrentState)
 float AAssassinCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
 	float FinalDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
-	if (CurrentWeapon != Weapon.SwordWeapon)
+	if(Cast<ASword>(DamageCauser))
 	{
-		AttachWeaponTo(Weapon.DaggleWeapon, FName("DaggleSocket"), false); //단검은 다른곳에 붙이기
-		AttachWeaponTo(Weapon.SwordWeapon, FName("Sword_rSocket"), true);	//칼 잡기
-	}
+		if (Weapon.SwordWeapon && CurrentWeapon != Weapon.SwordWeapon)
+		{
+			AttachWeaponTo(Weapon.DaggleWeapon, FName("DaggleSocket"), false); //단검은 다른곳에 붙이기
+			AttachWeaponTo(Weapon.SwordWeapon, FName("Sword_rSocket"), true);	//칼 잡기
+		}
 
-	//Push back
-	FVector DamagedFrom = EventInstigator ? EventInstigator->GetPawn()->GetActorLocation() : GetActorLocation();
-	FVector DamageDirection = DamagedFrom - GetActorLocation(); 
-	DamageDirection.Z = 0.f;
-	DamageDirection.Normalize();
-	DamageDirection *= -1;
-	FRotator NewRot = UKismetMathLibrary::FindLookAtRotation(this->GetActorLocation(), DamagedFrom);
-	SetActorRotation(NewRot);
+		//Rotation 설정
+		FVector DamagedFrom = EventInstigator ? EventInstigator->GetPawn()->GetActorLocation() : GetActorLocation();
+		FVector DamageDirection = DamagedFrom - GetActorLocation(); 
+		DamageDirection.Z = 0.f;
+		DamageDirection.Normalize();
+		DamageDirection *= -1;
+		FRotator NewRot = UKismetMathLibrary::FindLookAtRotation(this->GetActorLocation(), DamagedFrom);
+		SetActorRotation(NewRot);
 	
-	//Parrying 상태라면 무시
-	if (CurrentWeapon == Weapon.SwordWeapon && Weapon.SwordWeapon->IsParry > 0)
-	{
-		AAssassinCharacter* Enemy = Cast<AAssassinCharacter>(EventInstigator->GetPawn());
-		Weapon.SwordWeapon->PlayParry(Enemy);
+		//Parrying 상태라면 무시
+		if (CurrentWeapon && CurrentWeapon == Weapon.SwordWeapon && Weapon.SwordWeapon->IsParry > 0)
+		{
+			AAssassinCharacter* Enemy = Cast<AAssassinCharacter>(EventInstigator->GetPawn());
+			Weapon.SwordWeapon->PlayParry(Enemy);
 
-		Enemy->ACAnim->StopAllMontages(0.f);
-		Enemy->ACAnim->PlaySwordHitMontage();
-		Enemy->LaunchCharacter(Enemy->GetActorUpVector()*50.f,false, true);
-		Enemy->LaunchCharacter(Enemy->GetActorForwardVector()*-900.f,true, false);
-		
-		
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), SparkN, GetActorLocation(), DamageCauser->GetActorRotation() + FRotator(0.f, 0.f, -90.f));
-		return 0.f;
-	}
+			Enemy->ACAnim->StopAllMontages(0.f);
+			Enemy->ACAnim->PlaySwordHitMontage();
+			Enemy->LaunchCharacter(Enemy->GetActorUpVector()*50.f,false, true);
+			Enemy->LaunchCharacter(Enemy->GetActorForwardVector()*-900.f,true, false);
+			
+			UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), SparkN, GetActorLocation(), DamageCauser->GetActorRotation() + FRotator(0.f, 0.f, -90.f));
+			return 0.f;
+		}
 	
-	//MontagePlay
-	ACAnim->StopAllMontages(0.f);
-	ACAnim->PlaySwordHitMontage();
-	LaunchCharacter(GetActorUpVector()*50.f,false, true);
-	LaunchCharacter(GetActorForwardVector()*-1000.f,true, false);
+		//MontagePlay
+		ACAnim->StopAllMontages(0.f);
+		ACAnim->PlaySwordHitMontage();
+		LaunchCharacter(GetActorUpVector()*100.f,false, true);
+		LaunchCharacter(GetActorForwardVector()*-1000.f,true, false);
 
-	
-	if (CurrentWeapon == Weapon.SwordWeapon && Weapon.SwordWeapon->GetIsBlock()) //막고 있는 상태일 때
-	{
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), SparkN, GetActorLocation(), DamageCauser->GetActorRotation()+FRotator(0.f,0.f,-90.f));
-		LaunchCharacter(DamageDirection, true, true);
+		if (CurrentWeapon && CurrentWeapon == Weapon.SwordWeapon && Weapon.SwordWeapon->GetIsBlock()) //막고 있는 상태일 때
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), SparkN, GetActorLocation(), DamageCauser->GetActorRotation()+FRotator(0.f,0.f,-90.f));
+			LaunchCharacter(DamageDirection, true, true);
+		}
+		else	//막고있지 않을 때
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), BloodN, GetActorLocation(), DamageCauser->GetActorRotation() + FRotator(0.f, 0.f, -90.f));
+			HealthPoint -= DamageAmount;
+		}
 	}
-	else	//막고있지 않을 때
+	else if(Cast<AArrow>(DamageCauser) || Cast<AThrowDagger>(DamageCauser)) 
 	{
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), BloodN, GetActorLocation(), DamageCauser->GetActorRotation() + FRotator(0.f, 0.f, -90.f));
 		HealthPoint -= DamageAmount;
+		
+		FVector PlayerForward = GetActorForwardVector();
+		FVector ActorVector = DamageCauser->GetActorLocation() - GetActorLocation();
+		float DotProduct = FVector::DotProduct(PlayerForward, ActorVector);
+		ACAnim->PlayHitFromArrowMontage(DotProduct > 0);
 	}
+
 	
-	GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::White, FString::Printf(TEXT("HealthPoint: %f"), HealthPoint));
+	
+	
+	//GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::White, FString::Printf(TEXT("HealthPoint: %f"), HealthPoint));
 	//Death
 	if (HealthPoint <= 0.f)
 	{
 		IsDead = true;
 		ACAnim->PlaySwordDeathMontage();
 	}
-	
 	return FinalDamage;
 }
 
@@ -521,7 +535,11 @@ void AAssassinCharacter::BlockEnd()
 
 void AAssassinCharacter::Attack()
 {
-	if (CurrentWeapon == nullptr) return;
+	if (CurrentWeapon == nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("%s Can't Attack Because CurrentWeapon Is NULL"),*GetName());
+		return;
+	}
 	CurrentWeapon->Attack();
 }
 
@@ -583,10 +601,20 @@ void AAssassinCharacter::AttachWeaponTo(AWeapon* SwitchingWeapon, FName WeaponSo
 void AAssassinCharacter::Dead()
 {
 	IsDead = true;
+	TArray<AActor*> Weapons;
+	GetAttachedActors(Weapons);
+	for(auto weapon:Weapons)
+	{
+		if(Cast<AWeapon>(weapon))
+		{
+			Cast<AWeapon>(weapon)->Detach();
+		}
+	}
+	/*
 	if (CurrentWeapon != nullptr)
 	{
 		CurrentWeapon->Detach();
-	}
+	}*/
 	EagleVisionComponent->DisableEagleVisionMat();
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	GetMesh()->SetSimulatePhysics(true);
@@ -650,7 +678,7 @@ TArray<AAssassinCharacter*> AAssassinCharacter::DetectNearByEnemy(float SearchRa
 		AEnemy* Enemy = Cast<AEnemy>(HitResult.GetActor());
 		if (Enemy != nullptr && !Enemy->GetIsDead())
 		{
-			// 주변에 적이 검색되었으므로 처리
+			// 주변에 적이 검색되었으므로 처리HeadTreaking
 			NearbyEnemies.AddUnique(Enemy);
             
 		}

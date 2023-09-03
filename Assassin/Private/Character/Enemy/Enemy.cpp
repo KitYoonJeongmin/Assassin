@@ -17,7 +17,6 @@ AEnemy::AEnemy()
 	GetCharacterMovement()->bUseRVOAvoidance = true;
 	GetCharacterMovement()->AvoidanceConsiderationRadius = 700.f;
 	//AI
-	AIControllerClass = AMeleeAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 
 	//Health
@@ -31,10 +30,7 @@ void AEnemy::BeginPlay()
 {
 	Super::BeginPlay();
 	//Character Weapons Spawn  Sword
-	Weapon.SwordWeapon = GetWorld()->SpawnActor<ASword>(FVector::ZeroVector, FRotator::ZeroRotator);
-	AttachWeaponTo(Weapon.SwordWeapon, FName("SwordSocket"), false);
-	Weapon.SwordWeapon->InitializeWeapon(this);
-	SetEnemySwordAttackCollisionChannel();
+	
 }
 
 void AEnemy::Dead()

@@ -98,6 +98,13 @@ void ASmokeBomb::StunEnemy()
 			{
 				Cast<AMeleeAIController>(Enemy->GetController())->CanSense = false;
 				Cast<AMeleeAIController>(Enemy->GetController())->LoseSense();
+				Enemy->OnStunStart.Broadcast();
+				FTimerHandle myTimerHandle;
+				GetWorld()->GetTimerManager().SetTimer(myTimerHandle, FTimerDelegate::CreateLambda([Enemy]()
+					{
+						if(Enemy == nullptr) return;
+						Enemy->OnStunStart.Broadcast();
+					}), 5.f, false); 
 				Enemys.AddUnique(Enemy);
 			}
 		}

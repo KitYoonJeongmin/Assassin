@@ -23,7 +23,7 @@ ASword::ASword()
 	{
 		Mesh->SetStaticMesh(SM_WEAPON.Object);
 	}
-
+	
 	//Attack
 	SwordAttackType = UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel2);
 

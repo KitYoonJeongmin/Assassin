@@ -18,6 +18,6 @@ public:
 	AEnemy();
 	virtual void Dead() override;
 	virtual void BeginPlay() override;
-private:
+protected:
 	void SetEnemySwordAttackCollisionChannel();
 };

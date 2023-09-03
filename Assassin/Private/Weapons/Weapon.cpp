@@ -36,9 +36,7 @@ void AWeapon::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	if(!IsUsed) return;
-	/*FRotator Rot = GetActorRotation();
-	Rot.Pitch += 0.1f;
-	SetActorRotation(Rot);*/
+
 }
 
 void AWeapon::InitializeWeapon(AAssassinCharacter* OwnerCharacter)

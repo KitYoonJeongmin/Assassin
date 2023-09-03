@@ -10,25 +10,30 @@
 #include "Character/Enemy/Enemy.h"
 #include "Character/Enemy/MeleeAIController.h"
 #include "Character/Enemy/MeleeEnemy.h"
+#include "Character/Enemy/RangeEnemy.h"
 
 UBTTask_Patrol::UBTTask_Patrol()
 {
 	NodeName = TEXT("Patrol Path");
 	bNotifyTick = true;
-	CanMove = false;
+	
 }
 
 EBTNodeResult::Type UBTTask_Patrol::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
 	Super::ExecuteTask(OwnerComp, NodeMemory);
-	auto Enemy = Cast<AMeleeEnemy>(OwnerComp.GetAIOwner()->GetPawn());
-	if (nullptr == Enemy)
-		return EBTNodeResult::Failed;
+	CanMove = false;
+	UAIPatrol* EnemyPatrolComp;
+	
+	if(Cast<AMeleeEnemy>(OwnerComp.GetAIOwner()->GetPawn())) EnemyPatrolComp = Cast<AMeleeEnemy>(OwnerComp.GetAIOwner()->GetPawn())->AiPatrolComponent;
+	else if (Cast<ARangeEnemy>(OwnerComp.GetAIOwner()->GetPawn())) EnemyPatrolComp = Cast<ARangeEnemy>(OwnerComp.GetAIOwner()->GetPawn())->AiPatrolComponent;
+	else return EBTNodeResult::Failed;
+		
 
-	FVector nextPoint = Enemy->AiPatrolComponent->GetNextLocaiton();
+	FVector nextPoint = EnemyPatrolComp->GetNextLocaiton();
 	OwnerComp.GetBlackboardComponent()->SetValueAsVector(AMeleeAIController::TargetLocKey,nextPoint);
 	
-	if(Enemy->AiPatrolComponent->GetIsCheckPoint())
+	if(EnemyPatrolComp->GetIsCheckPoint())
 	{
 		FTimerHandle myTimerHandle;
 		GetWorld()->GetTimerManager().SetTimer(myTimerHandle, FTimerDelegate::CreateLambda([&]()
@@ -44,7 +49,7 @@ EBTNodeResult::Type UBTTask_Patrol::ExecuteTask(UBehaviorTreeComponent& OwnerCom
 void UBTTask_Patrol::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
 	Super::TickTask(OwnerComp, NodeMemory, DeltaSeconds);
-	UE_LOG(LogTemp, Warning, TEXT("--------Doing Patrol!!---------"));
+	//UE_LOG(LogTemp, Warning, TEXT("--------Doing Patrol!!---------"));
 	if(CanMove)
 	{
 		return FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);

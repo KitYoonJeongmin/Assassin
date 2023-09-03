@@ -8,6 +8,7 @@
 #include "Components/DecalComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Weapons/BossExplosionSkill.h"
+#include "Weapons/Sword.h"
 
 ABoss::ABoss()
 {
@@ -19,7 +20,10 @@ ABoss::ABoss()
 void ABoss::BeginPlay()
 {
 	Super::BeginPlay();
-	
+	Weapon.SwordWeapon = GetWorld()->SpawnActor<ASword>(FVector::ZeroVector, FRotator::ZeroRotator);
+	AttachWeaponTo(Weapon.SwordWeapon, FName("SwordSocket"), false);
+	Weapon.SwordWeapon->InitializeWeapon(this);
+	SetEnemySwordAttackCollisionChannel();
 }
 
 void ABoss::LaunchSkill()
@@ -51,7 +55,7 @@ void ABoss::LaunchSkill()
 			FVector LaunchVec = Enemy->GetActorLocation() - GetActorLocation();
 			LaunchVec.Z = 0.f;
 			LaunchVec.Normalize();
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("LOCATION: %s"), *LaunchVec.ToString()));
+			//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("LOCATION: %s"), *LaunchVec.ToString()));
 			Enemy->ACAnim->StopAllMontages(0.0f);
 			//Enemy->OnStunStart.Broadcast();
 			Enemy->ACAnim->PlaySwordHitMontage();

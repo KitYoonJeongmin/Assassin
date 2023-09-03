@@ -128,7 +128,7 @@ void UEagleVisionComponent::DetectTargets()
 
 	TArray<AActor*> ActorsToIgnore;
 	TArray<FHitResult> HitResults;
-	if(UKismetSystemLibrary::SphereTraceMulti(GetWorld(), StartLoc, EndLoc, CurrentEagleVisionRadius, UEngineTypes::ConvertToTraceType(ECC_Pawn), false, ActorsToIgnore, EDrawDebugTrace::ForOneFrame, HitResults, true))
+	if(UKismetSystemLibrary::SphereTraceMulti(GetWorld(), StartLoc, EndLoc, CurrentEagleVisionRadius, UEngineTypes::ConvertToTraceType(ECC_Pawn), false, ActorsToIgnore, EDrawDebugTrace::None, HitResults, true))
 	{
 		for(auto HitResult:HitResults)
 		{

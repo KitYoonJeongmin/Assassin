@@ -98,7 +98,6 @@ void ADagger::ForwardAttack()
 	{
 		FRotator TargetCharacterRot = Character->GetActorRotation();
 		TargetCharacterRot.Yaw +=180.f;
-		//TargetCharacter->SetActorRotation(TargetCharacterRot);
 		
 		FVector TargetLoc = TargetCharacter->GetActorLocation() + TargetCharacter->GetActorForwardVector()*115.f;
 		FRotator TargetRot = TargetCharacter->GetActorRotation();
@@ -112,8 +111,6 @@ void ADagger::ForwardAttack()
 	}
 	else
 	{
-		//TargetCharacter->SetActorRotation(Character->GetActorRotation());
-		
 		FVector TargetLoc = TargetCharacter->GetActorLocation() - TargetCharacter->GetActorForwardVector()*125.f;//+ TargetCharacter->GetActorRightVector()*10.f;
 		FRotator TargetRot = TargetCharacter->GetActorRotation();
 		Character->MotionWarpingComp->AddOrUpdateWarpTargetFromLocationAndRotation(TEXT("AssassinTarget"), TargetLoc, TargetRot);

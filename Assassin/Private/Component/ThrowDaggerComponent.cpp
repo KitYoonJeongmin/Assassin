@@ -53,7 +53,7 @@ void UThrowDaggerComponent::DrawGuide()
 
 void UThrowDaggerComponent::DeleteGuide()
 {
-	IsZooming=false;
+	SetIsZooming(false);
 	AimUIObject->SetVisibility(ESlateVisibility::Hidden);
 }
 

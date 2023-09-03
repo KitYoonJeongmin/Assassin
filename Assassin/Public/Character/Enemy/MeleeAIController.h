@@ -48,6 +48,7 @@ public:
 	UFUNCTION()
 	void UpdateDetectionLevel();
 	float GetDetectionLevel() const;
+	virtual void ExcuteDetect();
 private:
 	bool IsIncreaseDetectionLevel;
 	float DetectionLevel;

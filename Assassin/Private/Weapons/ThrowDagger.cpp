@@ -24,6 +24,15 @@ void AThrowDagger::BeginPlay()
 	newRot.Yaw += 90.f;
 	SetActorRotation(newRot);
 	
+	FTimerHandle myTimerHandle;
+	GetWorld()->GetTimerManager().SetTimer(myTimerHandle, FTimerDelegate::CreateLambda([&]()
+		{
+			Destroy();
+        
+			// 타이머 초기화
+			GetWorld()->GetTimerManager().ClearTimer(myTimerHandle);
+		}), 3.f, false); // 반복 실행을 하고 싶으면 false 대신 true 대입
+	
 }
 
 void AThrowDagger::ExcuteEffect(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -35,7 +44,7 @@ void AThrowDagger::ExcuteEffect(UPrimitiveComponent* OverlappedComponent, AActor
 	{
 		FDamageEvent DamageEvent;
 		
-		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow, FString::Printf(TEXT("BoneName: %s"), *(SweepResult.GetComponent()->GetName())));
+		//GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow, FString::Printf(TEXT("BoneName: %s"), *(SweepResult.GetComponent()->GetName())));
 		if(SweepResult.GetComponent()->GetName().Contains("head"))
 		{
 			HitEnemy->TakeDamage(HeadDamamge,DamageEvent,OwnerCharacter->GetController(), this);

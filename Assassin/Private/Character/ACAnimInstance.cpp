@@ -90,10 +90,6 @@ void UACAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	IKLeftHandLoc = Character->ClimbingComp->IKLeftHand;
 	IKRightHandLoc = Character->ClimbingComp->IKRightHand;
 
-	////MoveTo Other Ledge
-	//CanMoveOtherLedge = Character->ClimbingComp->ClimbingState.CanMoveOnLedge;
-	//InputRightAxis = Character->MovementVector.X;
-	//InputForwardAxis = Character->MovementVector.Y;
 	
 	//HeadTracking
 	TrackHead();
@@ -151,7 +147,6 @@ void UACAnimInstance::PlaySwordAttackMontage()
 
 void UACAnimInstance::PlaySwordHitMontage()
 {
-	
 	Character->OnStunStart.Broadcast();
 	
 	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Debug:  %s"), *Character->GetActorForwardVector().ToString()));
@@ -163,8 +158,6 @@ void UACAnimInstance::PlaySwordHitMontage()
 	{
 		Montage_Play(SwordHitMon, 1.f);
 	}
-	
-	
 }
 
 void UACAnimInstance::PlaySwordRollMontage()
@@ -288,6 +281,18 @@ void UACAnimInstance::PlayLaunchSkillMontage()
 {
 	Montage_Play(LaunchSkill, 1.0f);
 	
+}
+
+void UACAnimInstance::PlayArrowShootMontage()
+{
+	Montage_Play(ShootArrow, 1.0f);
+}
+
+void UACAnimInstance::PlayHitFromArrowMontage(bool IsFront)
+{
+	Character->OnStunStart.Broadcast();
+	Montage_Play(HitFromArrow, 1.0f);
+	if(!IsFront) Montage_JumpToSection("Back");
 }
 
 float UACAnimInstance::GetDistancebySwordFinish(UAnimMontage* FinisherMon)
@@ -435,35 +440,7 @@ bool UACAnimInstance::PlayMontagePriority(UAnimMontage* PlayMontage, float PlayR
 void UACAnimInstance::TrackHead()
 {
 	//HeadTracking
-	/*
-	APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(Character);
-	if (PlayerCharacter)
-	{
-		AAssassinCharacter* HeadTrackingEnemy = PlayerCharacter->FindNearestEnemy(PlayerCharacter->DetectNearByEnemy(HeadTrackingRadius));
-		if (HeadTrackingEnemy)
-		{
-			FVector EnemyDirection = (HeadTrackingEnemy->GetActorLocation() - Character->GetActorLocation());
-			EnemyDirection.Normalize();
-			float DotProduct = FVector::DotProduct(EnemyDirection, Character->GetController()->GetControlRotation().Vector());
-			float MaxDotProduct = FMath::Cos(FMath::DegreesToRadians(110.f));    //시야각 계산
-
-			if (DotProduct > MaxDotProduct) //시야각 내에 있는지 확인
-			{
-				HeadTrackingTarget = HeadTrackingEnemy->GetMesh()->GetSocketLocation(FName("neck_01"));
-			}
-			else
-			{
-				HeadTrackingTarget = Character->GetActorLocation() + Character->GetController()->GetControlRotation().Vector() * 300.f;
-			}
-		}
-		else
-		{
-			HeadTrackingTarget = Character->GetActorLocation() + Character->GetController()->GetControlRotation().Vector() * 300.f;
-		}
-		HeadTrackingTargetLoc = FMath::Lerp(HeadTrackingTarget, HeadTrackingTargetLoc, 0.95f);
-		//DrawDebugSphere(GetWorld(), HeadTrackingTargetLoc, 30.f, 10, FColor(181, 0, 0));
-	}
-*/
+	if(Character == nullptr || Character->GetController() == nullptr) return;
 	AAssassinCharacter* HeadTrackingEnemy = Character->FindNearestEnemy(Character->DetectNearByEnemy(HeadTrackingRadius));
 	if (HeadTrackingEnemy)
 	{

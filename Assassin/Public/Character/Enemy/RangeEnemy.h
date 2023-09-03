@@ -13,5 +13,10 @@ UCLASS()
 class ASSASSIN_API ARangeEnemy : public AEnemy
 {
 	GENERATED_BODY()
-	
+	ARangeEnemy();
+public:
+	virtual void BeginPlay() override;
+
+	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "Patrol", meta = (AllowPrivateAccess = "true"))
+	class UAIPatrol* AiPatrolComponent;
 };

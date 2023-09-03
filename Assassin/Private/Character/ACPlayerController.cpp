@@ -33,6 +33,6 @@ void AACPlayerController::OnEnableInput()
 
 void AACPlayerController::OnDisableInput()
 {
-
+	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Debug: PlayerControlelr is disable")));
 	GetPawn()->DisableInput(this);
 }

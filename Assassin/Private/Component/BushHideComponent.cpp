@@ -72,7 +72,7 @@ void UBushHideComponent::OnBoxComponentBeginOverlap(UPrimitiveComponent* Overlap
 {
 	++BushNum;
 	
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Overlap start<%s>: %d"),*(OtherActor->GetName()), BushNum));
+	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Overlap start<%s>: %d"),*(OtherActor->GetName()), BushNum));
 	UE_LOG(LogTemp, Warning, TEXT("Overlap start<%s>: %d"),*(OtherActor->GetName()), BushNum);
 	if(Character->GetCurrentWeapon() != Character->Weapon.DaggleWeapon) return;
 	Character->GetCharacterMovement()->MaxWalkSpeed = 100.f;
@@ -89,7 +89,7 @@ void UBushHideComponent::OnBoxComponentEndOverlap(UPrimitiveComponent* Overlappe
 {
 	--BushNum;
 	
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::White, FString::Printf(TEXT("Overlap End<%s>: %d"),*(OtherActor->GetName()), BushNum));
+	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::White, FString::Printf(TEXT("Overlap End<%s>: %d"),*(OtherActor->GetName()), BushNum));
 	UE_LOG(LogTemp, Warning, TEXT("Overlap End<%s>: %d"),*(OtherActor->GetName()), BushNum);
 
 	if(Character->GetVelocity().Size()>400.f) return;

@@ -17,8 +17,9 @@
 UENUM(BlueprintType)	
 enum class EWeaponState : uint8
 {
-	E_Sword = 0   UMETA(DisplayName = "Sword"),	
-	E_Daggle UMETA(DisplayName = "Daggle"),
+	E_Sword = 0	UMETA(DisplayName = "Sword"),	
+	E_Daggle	UMETA(DisplayName = "Daggle"),
+	
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnNextAttackCheckDelegate);
@@ -98,6 +99,11 @@ public:
 	/**BossAttack*/
 	void PlayLaunchSkillMontage();
 
+	/**ArrowShoot*/
+	void PlayArrowShootMontage();
+
+	void PlayHitFromArrowMontage(bool IsFront);
+
 private:
 	//Priority
 	TArray<UAnimMontage*> MontagePriority;
@@ -153,8 +159,12 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Boss, Meta = (AllowPrivateAccess = true))
 	UAnimMontage* LaunchSkill;
-
 	
+	//Arrow
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Boss, Meta = (AllowPrivateAccess = true))
+	UAnimMontage* ShootArrow;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Boss, Meta = (AllowPrivateAccess = true))
+	UAnimMontage* HitFromArrow;
 	//FootIK
 private:
 	

@@ -28,7 +28,7 @@ void UAIPatrol::BeginPlay()
 	PatrolPath->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
 	if(PatrolPath == nullptr)
 	{
-		if(GEngine) GEngine->AddOnScreenDebugMessage(-1,10,FColor::Red,TEXT("Couldn't find patrol spline!"));
+		//if(GEngine) GEngine->AddOnScreenDebugMessage(-1,10,FColor::Red,TEXT("Couldn't find patrol spline!"));
 	}
 	else
 	{
@@ -50,7 +50,7 @@ FVector UAIPatrol::GetNextLocaiton()
 	if (PatrolPath == nullptr) 
 	{
 		IsCheckPoint = false;
-		if(GEngine) GEngine->AddOnScreenDebugMessage(-1,10,FColor::Red,TEXT("Couldn't find patrol spline!"));
+		//if(GEngine) GEngine->AddOnScreenDebugMessage(-1,10,FColor::Red,TEXT("Couldn't find patrol spline!"));
 		return GetOwner()->GetActorLocation();
 	}
 
@@ -59,14 +59,14 @@ FVector UAIPatrol::GetNextLocaiton()
 	{
 		DistanceTerm *= -1; //추적 방향을 바꿔줌
 		IsCheckPoint = true;//끝 부분 이니깐 멈춤
-		UE_LOG(LogTemp, Warning, TEXT("--------There is START point in patrol spline---------"));
+		UE_LOG(LogTemp, Warning, TEXT("%s:--------There is START point in patrol spline---------"),*(GetOwner()->GetName()));
 		//if(GEngine) GEngine->AddOnScreenDebugMessage(-1,10,FColor::White,TEXT("There is START point in patrol spline"));
 	}
 	else if (DistanceOnSpline >= SplineLength)//끝 부분 이라면
 	{
 		DistanceTerm *= -1; //추적 방향을 바꿔줌
 		IsCheckPoint = true;//끝 부분 이니깐 멈춤
-		UE_LOG(LogTemp, Warning, TEXT("--------There is END point in patrol spline---------"));
+		UE_LOG(LogTemp, Warning, TEXT("%s:--------There is END point in patrol spline---------"),*(GetOwner()->GetName()));
 		//if(GEngine) GEngine->AddOnScreenDebugMessage(-1,10,FColor::White,TEXT("There is END point in patrol spline"));
 	}
 	else

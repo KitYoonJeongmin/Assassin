@@ -110,7 +110,7 @@ void AMeleeAIController:: OnTargetDetected(AActor* actor, FAIStimulus const Stim
 		Sight(actor, Stimulus);
 		break;
 	case 1:	//Hearing
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::White, FString::Printf(TEXT("Sound")));
+		//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::White, FString::Printf(TEXT("Sound")));
 		Hearing(actor, Stimulus);
 		break;
 	}
@@ -227,12 +227,15 @@ void AMeleeAIController::UpdateDetectionLevel()
 		OwnerEnemy->EnableDetectionWidget(true);
 		if(DetectionLevel >= 100.f && OwnerEnemy->GetCurrentWeapon() != OwnerEnemy->Weapon.SwordWeapon)
 		{
+			/*
 			//칼 착용
 			OwnerEnemy->ACAnim->PlayEquipMontage(true);
 			Blackboard->SetValueAsEnum(AIStateKey, (int8)EAIState::E_Holding);
 			//UE_LOG(LogTemp, Warning, TEXT("Equip Sword!!"));
 
 			Cast<AAssassinGameMode>(UGameplayStatics::GetGameMode(GetWorld()))->CountCombatEnemyNum(true);
+			*/
+			ExcuteDetect();
 		}
 	}
 	else if(!IsIncreaseDetectionLevel &&DetectionLevel>0.f)	//감소
@@ -251,6 +254,16 @@ void AMeleeAIController::UpdateDetectionLevel()
 float AMeleeAIController::GetDetectionLevel() const
 {
 	return DetectionLevel;
+}
+
+void AMeleeAIController::ExcuteDetect()
+{
+	//칼 착용
+	OwnerEnemy->ACAnim->PlayEquipMontage(true);
+	Blackboard->SetValueAsEnum(AIStateKey, (int8)EAIState::E_Holding);
+	//UE_LOG(LogTemp, Warning, TEXT("Equip Sword!!"));
+
+	Cast<AAssassinGameMode>(UGameplayStatics::GetGameMode(GetWorld()))->CountCombatEnemyNum(true);
 }
 
 

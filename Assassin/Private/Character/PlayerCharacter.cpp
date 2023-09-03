@@ -199,9 +199,7 @@ void APlayerCharacter::AttachWeaponTo(class AWeapon* SwitchingWeapon, FName Weap
     }
     else
     {
-        //bUseControllerRotationYaw = false;
         GetCharacterMovement()->bOrientRotationToMovement = true;
-        //GetCharacterMovement()->bUseControllerDesiredRotation = false;
     }
 }
 

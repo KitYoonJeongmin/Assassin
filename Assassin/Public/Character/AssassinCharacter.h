@@ -21,6 +21,8 @@ public:
 	class ASword* SwordWeapon;
 	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
 	class ADagger* DaggleWeapon;
+	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
+	class ABow* BowWeapon;
 
 };
 
@@ -186,8 +188,9 @@ private:
 	/**무기를 원하는 소켓에 붙이는 함수*/
 	virtual void AttachWeaponTo(class AWeapon* SwitchingWeapon, FName WeaponSocket, bool isEquip);
 	AWeapon* GetCurrentWeapon() { return CurrentWeapon; }
-private:
+protected:
 	/**현재 손에 있는 무기*/
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Weapon, meta = (AllowPrivateAccess = "true"))
 	class AWeapon* CurrentWeapon;
 
 	//Dead
