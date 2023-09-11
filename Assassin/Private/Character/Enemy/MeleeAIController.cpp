@@ -137,13 +137,11 @@ void AMeleeAIController::Sight(AActor* actor, FAIStimulus const Stimulus)
 		Blackboard->SetValueAsObject(TargetKey, Cast<APlayerCharacter>(actor));
 
 		AActor* FocusActor = actor; // 포커스를 설정할 대상 액터
-		//EAIFocusPriority::Type Priority = FAIFocusPriority(1); // 포커스 우선순위
 
 		SetFocus(FocusActor);
 		Blackboard->SetValueAsBool(CanSeePlayerKey, true);
 		Blackboard->SetValueAsEnum(AIStateKey, (int8)EAIState::E_Warning);
 		IsIncreaseDetectionLevel = true;//감지레벨 증가
-		return;
 	}
 }
 

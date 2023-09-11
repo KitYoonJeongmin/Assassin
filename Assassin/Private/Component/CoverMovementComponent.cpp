@@ -67,11 +67,8 @@ void UCoverMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType
 
 void UCoverMovementComponent::ToggleCoverMovement()
 {
-	if(Character == nullptr)
-	{
-		//UE_LOG(LogTemp,Warning,TEXT("-----Cover-------"));
-		return;
-	}
+	if(Character == nullptr) return;
+
 	
 	FVector StartLoc = Character->GetActorLocation()+Character->GetActorForwardVector()*50.f;
 	FVector EndLoc = StartLoc + Character->GetActorForwardVector()*70.f;
@@ -130,11 +127,6 @@ void UCoverMovementComponent::DisableCover()
 
 void UCoverMovementComponent::MoveInput(FVector2d Value)
 {
-	/*FVector InputRightVector;
-	InputRightVector = FRotationMatrix(GetControlRotation()).GetScaledAxis(EAxis::Y)*Value.Get<FVector2D>().Y;
-	InputRightVector.Normalize();
-	FVector::DotProduct(InputRightVector, GetActorRightVector());
-	CoverMovementComponent->MoveInput(Value.Get<FVector2D>());*/
 
 	FVector StartLoc = Character->GetActorLocation()+ Character->GetActorRightVector()*-Value.X*100.f;
 	FVector EndLoc = StartLoc+ Character->GetActorForwardVector()*-100.f;
